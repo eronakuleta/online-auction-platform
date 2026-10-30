@@ -1,6 +1,6 @@
-# Defense notes: Member A
+# Defense notes: Erona
 
-How to explain each task at the defense. Short, in our own words.
+How to explain each of Erona's tasks (`A-xx`) at the defense. Short, in our own words.
 
 ## A-01 Repo skeleton and frontend scaffold
 
