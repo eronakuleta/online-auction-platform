@@ -10,7 +10,8 @@
 ## Commits
 
 Conventional Commits (`feat:`, `fix:`, `test:`, `docs:`, `chore:`, `refactor:`). Keep commits small.
-Add the trailer `Assisted-by: Claude Code` when AI helped.
+Commits use your own Git identity. Never list an AI tool as author or co-author, and do not add
+AI trailers. Record AI-assisted work in `docs/ai-usage.md` instead (required by the course).
 
 ## Before opening a PR
 

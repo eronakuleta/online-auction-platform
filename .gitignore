@@ -36,5 +36,5 @@ temp/
 .DS_Store
 Thumbs.db
 
-# Local Claude Code tool state
+# Local assistant and editor settings (never commit)
 .claude/
