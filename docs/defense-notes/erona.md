@@ -9,3 +9,11 @@ How to explain each of Erona's tasks (`A-xx`) at the defense. Short, in our own 
 - **Secrets never reach git.** `.gitignore` blocks `.env`, keys and certs. `.env.example` lists every variable with a comment and placeholder values, and is the only env file that is committed.
 - **One typed API client** (`frontend/src/api/client.ts`). It adds the bearer token, parses JSON and turns the backend's standard error body into an `ApiError` with `code` and `message`, so the UI shows the server's message. The access token lives in a module variable (memory), not in localStorage. The base URL comes from `VITE_API_BASE_URL` and the app fails fast if it is missing.
 - **Money formatting never uses floats.** `formatMoney` builds an exact decimal string (`12345` cents to `"123.45"`) with integer math and passes it to `Intl.NumberFormat`. It rejects non-integer cents. TypeScript is pinned to 6.0 because `typescript-eslint` does not support TypeScript 7 yet.
+
+## A-02 Requirements
+
+- **Problem first, then goals.** The interesting part of an auction is not CRUD but concurrency (two bids at once), sniping, exactly-once money movement and live state across replicas. Each goal (G1–G6) says how it is measured, so we never claim something we did not test.
+- **Functional requirements are traceable.** FR-01 to FR-14 each list the actor, the endpoints, the priority (MoSCoW) and the task that builds them. The auction state machine in FR-04 is a table of allowed transitions; anything else is `409`.
+- **Two kinds of checks: role and ownership.** The permission matrix shows what each role may do. A role check (`requireRole('SELLER')`) runs in middleware, but "is this your auction?" needs the database, so it runs in the service layer.
+- **NFRs are targets until measured.** Security NFRs map to concrete mechanisms (argon2id, RS256, parameterized SQL, helmet, rate limits). Performance numbers (for example p95 < 500 ms for bids) are explicitly targets; only the k6 results are evidence.
+- **Open questions instead of invented rules.** Where the roadmap does not decide something (how a user becomes a seller, which profile fields are editable, who sees drafts), the document lists the options and who decides, instead of guessing.
