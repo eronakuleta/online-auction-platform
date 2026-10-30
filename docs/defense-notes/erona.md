@@ -36,3 +36,11 @@ How to explain each of Erona's tasks (`A-xx`) at the defense. Short, in our own 
 - **Same Node everywhere.** The Node version comes from `.nvmrc` (24), the same file developers use, and the npm cache makes repeat runs faster.
 - **Security of the pipeline.** `permissions: contents: read` gives the workflow the least privilege it needs; no secrets are used. `concurrency` cancels an outdated run when a newer commit is pushed.
 - **What comes next.** Integration tests need a real Postgres, so a Postgres service container is added together with the first schema (A-06); `docker build` steps are added once services have Dockerfiles (after A-04).
+
+## A-06 auth_db schema and seed
+
+- **Four tables.** `users`, a `roles` lookup table, `user_roles` (many-to-many, so a user can be `BIDDER` and `SELLER`), and `refresh_tokens`. Keys are UUIDs, times are `timestamptz`, and foreign keys `ON DELETE CASCADE` so deleting a user also removes their roles and tokens.
+- **The database is the last line of defence.** Even if a bug skipped zod validation, Postgres still refuses: duplicate or non-lowercase emails, a password that is not an argon2id hash (so a plain-text password can never be stored), blank or over-long names, unknown statuses or roles, and a refresh token that is not a SHA-256 hex hash.
+- **Why refresh tokens use SHA-256 but passwords use argon2id.** Passwords are short and guessable, so they need a slow, memory-hard hash. Refresh tokens are long random values, so a fast hash is enough; we only need that a stolen database cannot be used to log in. `family_id` and `replaced_by` support rotation: a reused old token lets A-07 revoke the whole family.
+- **Deterministic seed.** Fixed version-4 UUIDs (other services' seeds can refer to the same users), fixed argon2id hashes, and `ON CONFLICT DO NOTHING`, so running it twice changes nothing. Demo accounts are listed at the top of `002_seed.sql`; the demo seller is the fallback for the Q1 demo step.
+- **How it was verified.** Applied to a real Postgres, seed run twice, and 20 constraint cases tried (valid rows accepted, each invalid row rejected by the expected constraint). CI repeats the schema-plus-double-seed run on Postgres 16 on every push.
