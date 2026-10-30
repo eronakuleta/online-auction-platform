@@ -43,7 +43,7 @@ Online auctions look simple, but they hide several hard problems:
 | Administrator | Seeded account that manages users, categories and auctions                                                  | `ADMIN`                        |
 | System        | Background workers and event consumers (closing worker, settlement, notifications)                          | internal                       |
 
-A user can hold several roles. How a new user gets `SELLER` is open question Q1. Roles are checked with `requireRole()`
+A user can hold several roles. Every new user starts as `BIDDER`; only an admin can grant `SELLER` (decision Q1). Roles are checked with `requireRole()`
 middleware, and **ownership** (for example "this is my auction") is checked in the service layer.
 
 ### Permission matrix
@@ -88,8 +88,8 @@ Priority uses MoSCoW: **M** = must (core MVP), **S** = should, **C** = could (st
 ### FR-01 Account and session management
 
 - A visitor registers with email, password and display name. The email is unique. The password is
-  stored with argon2id, never in plain text. The new user gets the `BIDDER` role, and `SELLER`
-  as described in Q1.
+  stored with argon2id, never in plain text. The new user always gets only the `BIDDER` role.
+  The registration body has no roles field; a request that sends one is rejected with `400` (decision Q1).
 - A user logs in with email and password and receives a 15-minute RS256 access token and a refresh
   token.
 - The refresh token can be used once: each refresh returns a new pair and invalidates the old one
@@ -107,7 +107,9 @@ Priority uses MoSCoW: **M** = must (core MVP), **S** = should, **C** = could (st
 
 ### FR-03 User administration
 
-- An admin lists users with pagination, bans and unbans users, and changes their roles.
+- An admin lists users with pagination, bans and unbans users, and changes their roles. This is
+  the only way a user becomes a `SELLER` (decision Q1). Roles travel inside the access token, so
+  a role change takes effect at the user's next login or token refresh (within 15 minutes).
 - Registration publishes `user.registered` so other services can react (welcome notification).
 - **Endpoints:** `GET /users`, `PATCH /users/:id/status`, `PATCH /users/:id/roles`.
 
@@ -290,11 +292,11 @@ The numbers below are **targets**. They become claims only after they are measur
 
 ### Portability and operability
 
-| ID     | Requirement                                                                                        |
-| ------ | -------------------------------------------------------------------------------------------------- |
-| NFR-O1 | The whole system starts with `docker compose up` plus the README steps, on Windows, macOS or Linux |
-| NFR-O2 | Seed data is deterministic: an admin, demo users and categories exist after a fresh start          |
-| NFR-O3 | Every service exposes `/metrics` for Prometheus                                                    |
+| ID     | Requirement                                                                                                                      |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| NFR-O1 | The whole system starts with `docker compose up` plus the README steps, on Windows, macOS or Linux                               |
+| NFR-O2 | Seed data is deterministic: an admin, a demo seller (`SELLER` + `BIDDER`), demo bidders and categories exist after a fresh start |
+| NFR-O3 | Every service exposes `/metrics` for Prometheus                                                                                  |
 
 ---
 
@@ -419,13 +421,13 @@ sequenceDiagram
 These are rules that `ROADMAP.md` does not decide. They are answered before the task that needs
 them starts, and this document is updated.
 
-| ID  | Question                                                                     | Options                                                                                                 | Decided by            | Needed for |
-| --- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | --------------------- | ---------- |
-| Q1  | How does a user become a `SELLER`?                                           | (a) choose `SELLER` at registration (the demo registers a seller directly), (b) only an admin grants it | Erona                 | A-07       |
-| Q2  | Which profile fields can `PATCH /users/me` change?                           | display name only, or also email (then it must stay unique)                                             | Erona                 | A-07       |
-| Q3  | Do bid history, live state and the SSE stream need a token?                  | public read-only (like the catalog), or logged-in users only                                            | Anesa (her endpoints) | B-08, B-12 |
-| Q4  | Who can open a `DRAFT` auction by ID?                                        | its seller and admins (others get `404`), or its seller only                                            | Erona                 | A-11       |
-| Q5  | Are the performance targets in NFR-P2 and NFR-P3 right for the demo machine? | keep, or adjust after the first k6 run                                                                  | Anesa (B-19)          | B-19       |
+| ID  | Question                                                                     | Options                                                                                                        | Decided by            | Needed for |
+| --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------- | ---------- |
+| Q1  | How does a user become a `SELLER`?                                           | **Decided 30.10.2026:** only an admin grants it (`PATCH /users/:id/roles`). Registration always gives `BIDDER` | Erona                 | A-07, A-08 |
+| Q2  | Which profile fields can `PATCH /users/me` change?                           | display name only, or also email (then it must stay unique)                                                    | Erona                 | A-07       |
+| Q3  | Do bid history, live state and the SSE stream need a token?                  | public read-only (like the catalog), or logged-in users only                                                   | Anesa (her endpoints) | B-08, B-12 |
+| Q4  | Who can open a `DRAFT` auction by ID?                                        | its seller and admins (others get `404`), or its seller only                                                   | Erona                 | A-11       |
+| Q5  | Are the performance targets in NFR-P2 and NFR-P3 right for the demo machine? | keep, or adjust after the first k6 run                                                                         | Anesa (B-19)          | B-19       |
 
 - Design proposals 1, 2 and 4 in `docs/design-proposals.md` (public SSE stream, cancel through
   bidding-service, renaming `auction.created`) wait for Anesa's agreement. FR-04, FR-09 and the

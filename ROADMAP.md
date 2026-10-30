@@ -269,7 +269,7 @@ Items 1–6 of the original list (Grafana dashboard, admin UI pages, watchlist, 
 
 **Demo script (about 10 minutes):**
 1. `docker compose up`, show all containers healthy.
-2. Register a seller and two bidders. Show a 401 and a 403 case.
+2. Register two bidders and a third user. Show a 401 (no token) and a 403 (the new user tries to create an auction as a plain `BIDDER`). Log in as the seeded admin and grant that user `SELLER`; after a token refresh the same request succeeds. (A seeded demo seller is the fallback.)
 3. Seller creates and publishes a short auction (2 minutes).
 4. Both bidders bid at the same time in two browser windows. Show live SSE updates.
 5. Trigger anti-sniping with a late bid and show `ends_at` extended.
