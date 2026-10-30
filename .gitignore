@@ -1,0 +1,40 @@
+# Dependencies and build output
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Test and coverage output
+coverage/
+junit*.xml
+
+# Secrets: only .env.example is committed
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+gateway/certs/
+
+# Logs and temp files
+*.log
+npm-debug.log*
+tmp/
+temp/
+*.tmp
+
+# Generated packages (scripts/package.sh)
+*.zip
+
+# Editors and OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local Claude Code tool state
+.claude/

@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+package-lock.json
+tests/performance/results
+# Planning docs are hand-formatted
+ROADMAP.md
+TASKS.md
+CLAUDE.md

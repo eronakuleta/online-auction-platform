@@ -36,7 +36,7 @@ How to read this file:
 
 | ID | Task | Hrs | Wk | Deps | Done |
 |---|---|---|---|---|---|
-| A-01 | Repo skeleton: course folder structure, `.gitignore`, `.env.example`, PR template, branch rules, lint/format config; frontend scaffold (Vite + React + TS, React Router, MUI, TanStack Query, typed API client stub, `VITE_API_BASE_URL`) | 3 | 1 | none | [ ] |
+| A-01 | Repo skeleton: course folder structure, `.gitignore`, `.env.example`, PR template, branch rules, lint/format config; frontend scaffold (Vite + React + TS, React Router, MUI, TanStack Query, typed API client stub, `VITE_API_BASE_URL`) | 3 | 1 | none | [x] |
 | A-02 | `docs/requirements.md`: problem, goals, actors and roles, about 10 functional requirements, NFRs (security, performance, reliability, maintainability), data sources, main processes | 5 | 1 | none | [ ] |
 | A-03 | `docs/architecture.md`: component diagram, service boundaries, sync vs async, ER diagrams of all 5 DBs, justification of microservices and DB choice | 4 | 2 | B-01 | [ ] |
 | A-04 | `docker-compose.yml` base: Postgres (5 DBs via init script), Redis, RabbitMQ, MailHog, healthchecks, networks, env wiring | 5 | 1 | A-01 | [ ] |
