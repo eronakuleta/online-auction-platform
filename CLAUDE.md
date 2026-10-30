@@ -77,7 +77,7 @@ npm test -w backend/services/<name>   # one service
 npm run dev -w frontend               # Vite dev server on :5173
 npm run build -w frontend             # production build
 scripts/reset-db.sh                   # drop and recreate all DBs with seed data
-scripts/gen-keys.sh                   # generate JWT RSA keypair (never commit)
+npm run gen-keys                      # generate JWT RSA keypair into secrets/ (never commit)
 k6 run tests/performance/<script>.js
 ```
 

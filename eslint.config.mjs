@@ -23,8 +23,18 @@ export default tseslint.config(
     },
   },
   {
-    files: ['backend/**/*.ts', 'tests/**/*.{ts,js}', 'scripts/**/*.{ts,js,mjs}', '*.{js,mjs}'],
+    files: [
+      'backend/**/*.{ts,js,mjs}',
+      'tests/**/*.{ts,js}',
+      'scripts/**/*.{ts,js,mjs}',
+      '*.{js,mjs}',
+    ],
     languageOptions: { globals: globals.node },
+  },
+  {
+    // Backend packages are CommonJS, so their plain .js config files (e.g. jest.config.js) are too.
+    files: ['backend/**/*.js'],
+    languageOptions: { sourceType: 'commonjs' },
   },
   {
     files: ['frontend/**/*.{ts,tsx}'],
