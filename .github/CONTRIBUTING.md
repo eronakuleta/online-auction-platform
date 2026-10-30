@@ -27,7 +27,7 @@ npm run build
 Settings → Branches → Add rule for `main`:
 
 - Require a pull request before merging, with 1 approval
-- Require status checks to pass (enable after CI exists, task A-22)
+- Require status checks to pass: select "Lint, typecheck, build and test" (from `.github/workflows/ci.yml`)
 - Do not allow force pushes or deletions
 
 ## Line endings (Windows)

@@ -28,3 +28,11 @@ How to explain each of Erona's tasks (`A-xx`) at the defense. Short, in our own 
 - **Attacks the tests prove we block.** A forged signature (attacker's key), a payload edited after signing (`roles: ['ADMIN']`), `alg: none`, and algorithm confusion (an HS256 token "signed" with our public key as the secret). Each one is rejected as `INVALID`; an old token is `EXPIRED`. 34 tests in total.
 - **Role check vs ownership check.** `hasAnyRole()` answers "is this user a SELLER?" and becomes the `requireRole()` middleware. "Is this _your_ auction?" needs the database, so it is checked in each service's business layer.
 - **Why the Express middleware is not here yet.** `authenticate()` and `requireRole()` must answer 401/403 in the standard error format, which uses Anesa's shared error classes from B-02. To avoid duplicating her work, they are added after B-02 lands. Keys come from `npm run gen-keys` (a Node script, so it also runs on Windows) and live in the gitignored `secrets/`.
+
+## A-22 CI (part 1: checks job)
+
+- **What runs and when.** `.github/workflows/ci.yml` runs on every push to any branch and on every PR to `main`: `npm ci`, lint, format check, typecheck, build, test. A PR can only be merged when it is green (branch protection → required status check "Lint, typecheck, build and test").
+- **`npm ci`, not `npm install`.** `npm ci` installs exactly what `package-lock.json` says and fails if the lockfile is out of date, so CI tests the same dependency versions we use locally.
+- **Same Node everywhere.** The Node version comes from `.nvmrc` (24), the same file developers use, and the npm cache makes repeat runs faster.
+- **Security of the pipeline.** `permissions: contents: read` gives the workflow the least privilege it needs; no secrets are used. `concurrency` cancels an outdated run when a newer commit is pushed.
+- **What comes next.** Integration tests need a real Postgres, so a Postgres service container is added together with the first schema (A-06); `docker build` steps are added once services have Dockerfiles (after A-04).
