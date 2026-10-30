@@ -1,0 +1,13 @@
+# Normalise line endings so scripts work inside Linux containers on Windows machines.
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.sql  text eol=lf
+*.conf text eol=lf
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+
+*.png  binary
+*.jpg  binary
+*.ico  binary
+*.pem  binary
