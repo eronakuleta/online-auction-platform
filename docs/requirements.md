@@ -102,7 +102,9 @@ Priority uses MoSCoW: **M** = must (core MVP), **S** = should, **C** = could (st
 ### FR-02 Profile
 
 - A logged-in user reads and partially updates their own profile. Roles can never be changed
-  here (only by an admin, FR-03). Which fields are editable is open question Q2.
+  here (only by an admin, FR-03). Only `displayName` can be changed
+  (decision Q2): email, password, roles and status are not accepted, and any other field is
+  rejected with `400`.
 - **Endpoints:** `GET /users/me`, `PATCH /users/me`.
 
 ### FR-03 User administration
@@ -424,7 +426,7 @@ them starts, and this document is updated.
 | ID  | Question                                                                     | Options                                                                                                        | Decided by            | Needed for |
 | --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------- | ---------- |
 | Q1  | How does a user become a `SELLER`?                                           | **Decided 30.10.2026:** only an admin grants it (`PATCH /users/:id/roles`). Registration always gives `BIDDER` | Erona                 | A-07, A-08 |
-| Q2  | Which profile fields can `PATCH /users/me` change?                           | display name only, or also email (then it must stay unique)                                                    | Erona                 | A-07       |
+| Q2  | Which profile fields can `PATCH /users/me` change?                           | **Decided 30.10.2026:** `displayName` only. Email stays fixed, because it is the login identifier              | Erona                 | A-07       |
 | Q3  | Do bid history, live state and the SSE stream need a token?                  | public read-only (like the catalog), or logged-in users only                                                   | Anesa (her endpoints) | B-08, B-12 |
 | Q4  | Who can open a `DRAFT` auction by ID?                                        | its seller and admins (others get `404`), or its seller only                                                   | Erona                 | A-11       |
 | Q5  | Are the performance targets in NFR-P2 and NFR-P3 right for the demo machine? | keep, or adjust after the first k6 run                                                                         | Anesa (B-19)          | B-19       |
