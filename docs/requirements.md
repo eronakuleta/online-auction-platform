@@ -145,7 +145,9 @@ Priority uses MoSCoW: **M** = must (core MVP), **S** = should, **C** = could (st
 - Anyone lists auctions with full-text search (`q`), filters (category, status, price range),
   sorting and pagination (`?page=1&size=20`, size capped at 100).
 - Anyone views auction details and lists categories. An admin creates categories.
-- Drafts are not shown in the public catalog. Who can open a draft by ID is open question Q4.
+- Drafts are not shown in the public catalog. `GET /auctions/:id` on a `DRAFT` returns it only to
+  its seller and to admins; everyone else (including visitors and other sellers) gets `404`, not
+  `403`, so the response does not reveal that the draft exists (decision Q4).
 - **Endpoints:** `GET /auctions`, `GET /auctions/:id`, `GET /categories`, `POST /categories`.
 
 ### FR-06 Place a bid
@@ -428,7 +430,7 @@ them starts, and this document is updated.
 | Q1  | How does a user become a `SELLER`?                                           | **Decided 30.10.2026:** only an admin grants it (`PATCH /users/:id/roles`). Registration always gives `BIDDER` | Erona                 | A-07, A-08 |
 | Q2  | Which profile fields can `PATCH /users/me` change?                           | **Decided 30.10.2026:** `displayName` only. Email stays fixed, because it is the login identifier              | Erona                 | A-07       |
 | Q3  | Do bid history, live state and the SSE stream need a token?                  | public read-only (like the catalog), or logged-in users only                                                   | Anesa (her endpoints) | B-08, B-12 |
-| Q4  | Who can open a `DRAFT` auction by ID?                                        | its seller and admins (others get `404`), or its seller only                                                   | Erona                 | A-11       |
+| Q4  | Who can open a `DRAFT` auction by ID?                                        | **Decided 30.10.2026:** its seller and admins. Everyone else gets `404`                                        | Erona                 | A-11       |
 | Q5  | Are the performance targets in NFR-P2 and NFR-P3 right for the demo machine? | keep, or adjust after the first k6 run                                                                         | Anesa (B-19)          | B-19       |
 
 - Design proposals 1, 2 and 4 in `docs/design-proposals.md` (public SSE stream, cancel through
