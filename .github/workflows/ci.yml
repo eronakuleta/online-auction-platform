@@ -73,34 +73,19 @@ jobs:
           --health-retries 10
     env:
       PGHOST: localhost
-      PGUSER: postgres
       PGPASSWORD: postgres
     steps:
       - name: Check out code
         uses: actions/checkout@v7
 
-      # Each database/<service>/ folder becomes <service>_db. Files run in numeric order
-      # (001_schema.sql, 002_seed.sql, ...), stopping at the first SQL error. Seeds then run a
-      # second time to prove they are safe to rerun.
+      - name: Validate docker-compose.yml
+        run: docker compose --env-file .env.example config --quiet
+
+      # The same script Docker Compose runs on a fresh volume. RERUN_SEEDS=1 runs every seed a
+      # second time to prove it is safe to rerun.
       - name: Apply every schema and seed to a fresh Postgres 16
-        run: |
-          set -euo pipefail
-          for dir in database/*/; do
-            service=$(basename "$dir")
-            mapfile -t files < <(find "$dir" -maxdepth 1 -name '[0-9]*.sql' | sort)
-            if [ ${#files[@]} -eq 0 ]; then
-              echo "::notice::$service has no SQL files yet, skipped"
-              continue
-            fi
-            createdb "${service}_db"
-            for file in "${files[@]}"; do
-              echo "Applying $file"
-              psql -v ON_ERROR_STOP=1 -q -d "${service}_db" -f "$file"
-            done
-            for file in "${files[@]}"; do
-              if [[ "$file" == *_seed.sql ]]; then
-                echo "Re-running $file"
-                psql -v ON_ERROR_STOP=1 -q -d "${service}_db" -f "$file"
-              fi
-            done
-          done
+        env:
+          DATABASE_DIR: database
+          POSTGRES_USER: postgres
+          RERUN_SEEDS: '1'
+        run: bash database/init-databases.sh
