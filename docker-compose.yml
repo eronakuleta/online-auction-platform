@@ -1,0 +1,80 @@
+# Local environment for the auction platform (owner: Erona, task A-04).
+#   docker compose up -d        start the infrastructure (waits for health checks)
+#   docker compose ps           every container should show "healthy"
+#   docker compose down -v      stop and delete data; the next `up` re-creates and re-seeds the DBs
+# Values come from .env (copy .env.example). The five services and the Nginx gateway are added
+# here as they are built (A-07 onwards, A-20); Prometheus comes with Anesa's monitoring profile.
+
+name: auction-platform
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: postgres
+      # Read by database/init-databases.sh to name each service's database.
+      AUTH_DB_NAME: ${AUTH_DB_NAME:-auth_db}
+      AUCTION_DB_NAME: ${AUCTION_DB_NAME:-auction_db}
+      BIDDING_DB_NAME: ${BIDDING_DB_NAME:-bidding_db}
+      PAYMENT_DB_NAME: ${PAYMENT_DB_NAME:-payment_db}
+      NOTIFICATION_DB_NAME: ${NOTIFICATION_DB_NAME:-notification_db}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init-databases.sh:/docker-entrypoint-initdb.d/00-init-databases.sh:ro
+      - ./database:/database:ro
+    ports:
+      # Bound to localhost only, so the database is never reachable from the network.
+      - '127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks: [backend]
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'no', '--save', '']
+    ports:
+      - '127.0.0.1:${REDIS_HOST_PORT:-6379}:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?set RABBITMQ_USER in .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    ports:
+      - '127.0.0.1:${RABBITMQ_HOST_PORT:-5672}:5672'
+      # Management UI: http://localhost:15672
+      - '127.0.0.1:${RABBITMQ_MANAGEMENT_HOST_PORT:-15672}:15672'
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+    networks: [backend]
+    restart: unless-stopped
+
+networks:
+  # Internal network shared by infrastructure and services. Only the gateway (A-20) will join a
+  # second, public-facing network.
+  backend:
+    name: auction-backend
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
