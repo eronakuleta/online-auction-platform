@@ -1,4 +1,27 @@
-In review (`authenticate()` and `requireRole()` use the shared errors from B-02) | [x] |Ready after A-05 and A-06 (B-02 pushed)Ready after A-07 (B-02 pushed)Ready after A-07, A-08Ready after A-05, A-10 (B-02 pushed)Ready after A-11Ready after A-11 (B-01, B-02, B-03 pushed)Ready after A-11Ready after A-11 to A-14Ready after A-05, A-16 (B-02 pushed)Blocked: B-11 (closing worker); B-02 pushedWaits for A-18 (→ B-11)Waits for A-20 and the servicesWaits for A-15, A-19 (→ B-11)Waits for A-07, A-12Waits for A-25Waits for A-25, A-17
+# Task Division: Online Auction Platform
+
+**Erona:** tasks `A-01` to `A-31`  **Anesa:** tasks `B-01` to `B-25`
+
+> **Replanned on 30.10.2026** for the new hard deadline of **Mon 16.11.2026** (internal target Sat 14.11). See `ROADMAP.md` §7. Task IDs are unchanged: `A-xx` belongs to Erona and `B-xx` belongs to Anesa. Scope changes that touch Anesa's tasks are marked **proposed, Anesa to confirm** and do not take effect until she agrees.
+
+Estimated hours: **Erona 126 h**, **Anesa 146 h** (core MVP, see the balance table). Hours are estimates, not promises. Re-estimate at the daily sync.
+
+How to read this file:
+- `Due` is the end of the sprint from `ROADMAP.md` §7 in which the task must be merged.
+- `Deps` lists tasks that must be finished, or stubbed, first. Deps marked *(implicit)* follow from `CLAUDE.md` rules (every service must use the shared logger and error handler from B-02) and were added in the replan.
+- `Status` (Erona's tasks only) is one of:
+  - **Ready**: can start now
+  - **Ready after A-xx**: waits only for Erona's own earlier task
+  - **Blocked: B-xx**: pending until Anesa's task is merged. Do not start it.
+  - **Waits for ... (→ B-xx)**: waits for Erona's own task, which is itself blocked by Anesa
+- Anesa keeps the status of her own tasks. Nothing here marks her work as started or done.
+- Tick the `Done` box only when the Definition of Done in `ROADMAP.md` is met.
+- Branch naming: `feat/A-11-auction-crud`. One PR per task, reviewed by the **other** member.
+
+---
+
+## Balance summary
+
 | Area | Erona (h) | Anesa (h) | Notes |
 |---|---|---|---|
 | Backend services and shared code | 57 | 80 | Anesa owns the hardest domain code (bidding), Erona owns 3 of the 5 services |
@@ -25,31 +48,31 @@ Anesa's numbers include the proposed cuts to B-15, B-17, B-20 and B-25. Her othe
 |---|---|---|---|---|---|---|
 | A-01 | Repo skeleton: course folder structure, `.gitignore`, `.env.example`, PR template, branch rules, lint/format config; frontend scaffold (Vite + React + TS, React Router, MUI, TanStack Query, typed API client stub, `VITE_API_BASE_URL`) | 3 | Tue 03.11 | none | In review | [x] |
 | A-02 | `docs/requirements.md`: problem, goals, actors and roles, about 10 functional requirements, NFRs (security, performance, reliability, maintainability), data sources, main processes | 3 | Tue 03.11 | none | In review | [x] |
-| A-03 | `docs/architecture.md`: component diagram, service boundaries, sync vs async, ER diagrams of all 5 DBs, justification of microservices and DB choice | 3 | Sun 08.11 | B-01 | Blocked: B-01 | [ ] |
+| A-03 | `docs/architecture.md`: component diagram, service boundaries, sync vs async, ER diagrams of all 5 DBs, justification of microservices and DB choice | 3 | Sun 08.11 | B-01 | Ready (B-01 pushed) | [ ] |
 | A-04 | `docker-compose.yml` base: Postgres (5 DBs via init script), Redis, RabbitMQ, healthchecks, networks, env wiring (MailHog moved to stretch) | 4 | Tue 03.11 | A-01 | In review (5 DBs, Redis, RabbitMQ healthy; verified with `docker compose up`) | [x] |
-| A-05 | `backend/shared/auth`: JWT RS256 verify middleware, `requireRole()` RBAC, key-generation script | 4 | Tue 03.11 | A-01, B-02 *(implicit, for the 401/403 error classes)* | In progress: key script, token verification and role checks done; `authenticate()` / `requireRole()` middleware blocked on B-02 | [ ] |
+| A-05 | `backend/shared/auth`: JWT RS256 verify middleware, `requireRole()` RBAC, key-generation script | 4 | Tue 03.11 | A-01, B-02 *(implicit, for the 401/403 error classes)* | In review (`authenticate()` and `requireRole()` use the shared errors from B-02) | [x] |
 | A-06 | auth-service: SQL schema (users, roles, refresh_tokens) and seed (admin, demo users) | 3 | Tue 03.11 | A-04 | In review (verified on Postgres; mounted by A-04) | [x] |
-| A-07 | auth-service: register, login, refresh (rotation), logout, `GET/PATCH /users/me`, argon2id, zod validation | 8 | Sun 08.11 | A-05, A-06, B-02 *(implicit)* | Blocked: B-02 | [ ] |
-| A-08 | auth-service: admin endpoints (list users, ban/unban, change roles) and `user.registered` event | 4 | Sun 08.11 | A-07, B-02 | Blocked: B-02 | [ ] |
-| A-09 | auth-service tests: unit and integration (valid, invalid, unauthorized, edge cases) | 4 | Wed 11.11 | A-07, A-08 | Waits for A-07, A-08 (→ B-02) | [ ] |
+| A-07 | auth-service: register, login, refresh (rotation), logout, `GET/PATCH /users/me`, argon2id, zod validation | 8 | Sun 08.11 | A-05, A-06, B-02 *(implicit)* | Ready after A-05 and A-06 (B-02 pushed) | [ ] |
+| A-08 | auth-service: admin endpoints (list users, ban/unban, change roles) and `user.registered` event | 4 | Sun 08.11 | A-07, B-02 | Ready after A-07 (B-02 pushed) | [ ] |
+| A-09 | auth-service tests: unit and integration (valid, invalid, unauthorized, edge cases) | 4 | Wed 11.11 | A-07, A-08 | Ready after A-07, A-08 | [ ] |
 | A-10 | auction-service: SQL schema (auctions, categories, images) and seed (categories, sample auctions). Watchlist table moved to stretch | 3 | Tue 03.11 | A-04 | In review (verified on Postgres 16 and loaded into the running stack) | [x] |
-| A-11 | auction-service: create, edit, publish, cancel, delete auction with ownership and state rules | 8 | Sun 08.11 | A-05, A-10, B-02 *(implicit)* | Blocked: B-02 | [ ] |
-| A-12 | auction-service: list, search, filter, sort, paginate (parameterized queries, indexes) | 4 | Wed 11.11 | A-11 | Waits for A-11 (→ B-02) | [ ] |
-| A-13 | auction-service: publish `auction.published/cancelled`; consume `auction.extended`, `auction.closed`, `payment.*` to update status | 5 | Wed 11.11 | A-11, B-01, B-02, B-03 | Blocked: B-01, B-02, B-03 | [ ] |
-| A-14 | auction-service: admin category management (`POST /categories`). Watchlist endpoints moved to stretch | 2 | Wed 11.11 | A-11 | Waits for A-11 (→ B-02) | [ ] |
-| A-15 | auction-service tests | 4 | Fri 13.11 | A-11, A-12, A-13, A-14 | Waits for A-11 to A-14 (→ B-01, B-02, B-03) | [ ] |
+| A-11 | auction-service: create, edit, publish, cancel, delete auction with ownership and state rules | 8 | Sun 08.11 | A-05, A-10, B-02 *(implicit)* | Ready after A-05, A-10 (B-02 pushed) | [ ] |
+| A-12 | auction-service: list, search, filter, sort, paginate (parameterized queries, indexes) | 4 | Wed 11.11 | A-11 | Ready after A-11 | [ ] |
+| A-13 | auction-service: publish `auction.published/cancelled`; consume `auction.extended`, `auction.closed`, `payment.*` to update status | 5 | Wed 11.11 | A-11, B-01, B-02, B-03 | Ready after A-11 (B-01, B-02, B-03 pushed) | [ ] |
+| A-14 | auction-service: admin category management (`POST /categories`). Watchlist endpoints moved to stretch | 2 | Wed 11.11 | A-11 | Ready after A-11 | [ ] |
+| A-15 | auction-service tests | 4 | Fri 13.11 | A-11, A-12, A-13, A-14 | Ready after A-11 to A-14 | [ ] |
 | A-16 | payment-service: SQL schema (wallets, ledger_entries, settlements with unique `auction_id`) and seed | 3 | Tue 03.11 | A-04 | Ready after A-04 | [ ] |
-| A-17 | payment-service: wallet balance, simulated deposit, history, internal funds-check endpoint (blocked at gateway) | 5 | Sun 08.11 | A-05, A-16, B-02 *(implicit)* | Blocked: B-02 | [ ] |
-| A-18 | payment-service: settlement consumer on `auction.closed` (atomic debit, credit, fee; idempotent; publishes `payment.completed/failed`) | 8 | Wed 11.11 | A-17, B-02, B-11 | Blocked: B-02, B-11 | [ ] |
-| A-19 | payment-service tests (duplicate event, insufficient funds, rounding of fee) | 4 | Fri 13.11 | A-18 | Waits for A-18 (→ B-02, B-11) | [ ] |
+| A-17 | payment-service: wallet balance, simulated deposit, history, internal funds-check endpoint (blocked at gateway) | 5 | Sun 08.11 | A-05, A-16, B-02 *(implicit)* | Ready after A-05, A-16 (B-02 pushed) | [ ] |
+| A-18 | payment-service: settlement consumer on `auction.closed` (atomic debit, credit, fee; idempotent; publishes `payment.completed/failed`) | 8 | Wed 11.11 | A-17, B-02, B-11 | Blocked: B-11 (closing worker); B-02 pushed | [ ] |
+| A-19 | payment-service tests (duplicate event, insufficient funds, rounding of fee) | 4 | Fri 13.11 | A-18 | Waits for A-18 (→ B-11) | [ ] |
 | A-20 | Gateway: Nginx routing table, TLS (self-signed) with documented local limits, rate limiting, block `/internal` | 5 | Sun 08.11 | A-04 | Ready after A-04 | [ ] |
 | A-21 | Gateway: load-balance bidding replicas (SSE-safe: buffering off, long read timeout) | 3 | Fri 13.11 | A-20, B-12 | Blocked: B-12 | [ ] |
 | A-22 | CI: GitHub Actions (lint, build, tests with service containers, docker build) | 4 | Tue 03.11 | A-04 | In progress: checks job, compose validation and Postgres 16 schema/seed job (same init script as Compose) run on every push; docker build steps follow the first service | [ ] |
-| A-23 | Security hardening: helmet, CORS allow-list, body limits, login throttling, secrets audit; security test suite (SQLi payloads, missing/expired/forged JWT, RBAC matrix) | 6 | Fri 13.11 | A-20, A-07, A-11, A-17 | Waits for A-20 and the services (→ B-02) | [ ] |
-| A-24 | OpenAPI 3 specs for auth, auction, payment plus Swagger UI | 4 | Sat 14.11 | A-15, A-19 | Waits for A-15, A-19 (→ B-01, B-02, B-03, B-11) | [ ] |
-| A-25 | Frontend: auth context with token refresh and role-based route guards, auth pages, catalog browse/search/filter, auction detail (read-only) | 5 | Wed 11.11 | A-07, A-12 | Waits for A-07, A-12 (→ B-02) | [ ] |
-| A-26 | Frontend: create/edit auction form, seller dashboard (dashboard is first on the cut list if late) | 4 | Fri 13.11 | A-25 | Waits for A-25 (→ B-02) | [ ] |
-| A-27 | Frontend: wallet page. Admin pages moved to stretch (admin API stays) | 2 | Fri 13.11 | A-25, A-17 | Waits for A-25, A-17 (→ B-02) | [ ] |
+| A-23 | Security hardening: helmet, CORS allow-list, body limits, login throttling, secrets audit; security test suite (SQLi payloads, missing/expired/forged JWT, RBAC matrix) | 6 | Fri 13.11 | A-20, A-07, A-11, A-17 | Waits for A-20 and the services | [ ] |
+| A-24 | OpenAPI 3 specs for auth, auction, payment plus Swagger UI | 4 | Sat 14.11 | A-15, A-19 | Waits for A-15, A-19 (→ B-11) | [ ] |
+| A-25 | Frontend: auth context with token refresh and role-based route guards, auth pages, catalog browse/search/filter, auction detail (read-only) | 5 | Wed 11.11 | A-07, A-12 | Waits for A-07, A-12 | [ ] |
+| A-26 | Frontend: create/edit auction form, seller dashboard (dashboard is first on the cut list if late) | 4 | Fri 13.11 | A-25 | Waits for A-25 | [ ] |
+| A-27 | Frontend: wallet page. Admin pages moved to stretch (admin API stays) | 2 | Fri 13.11 | A-25, A-17 | Waits for A-25, A-17 | [ ] |
 | A-28 | `tests/e2e`: full lifecycle through the gateway (register, create, bid, close, settle, notify) | 3 | Sat 14.11 | all services | Blocked: all of Anesa's service tasks (B-06 to B-15) | [ ] |
 | A-29 | Presentation: requirements, architecture, security, own services | 2 | Sat 14.11 | none | Ready (finalise last) | [ ] |
 | A-30 | Defense prep: rehearse demo, live-change drills, update `docs/contributions.md` | 3 | Sat 14.11 | none | Ready (do last) | [ ] |
