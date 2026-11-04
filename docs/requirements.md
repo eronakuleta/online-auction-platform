@@ -123,7 +123,9 @@ Priority uses MoSCoW: **M** = must (core MVP), **S** = should, **C** = could (st
 - The seller can edit or delete the auction **only while it is `DRAFT`**.
 - Publishing moves it to `PUBLISHED`. From then on, bidding-service accepts bids within
   `starts_at <= now < ends_at`.
-- The seller can cancel **only before the first bid**. An admin can always cancel.
+- The seller can cancel **only before the first bid**. An admin can always cancel. For a published
+  auction, bidding-service decides this under the same row lock as place-bid (`docs/events.md`
+  section 8).
 - Persisted states and allowed transitions (enforced in the service layer; anything else is
   `409`):
 
@@ -190,8 +192,8 @@ row lock on the auction:
 - Viewers of an auction receive new bids, extensions and closing over Server-Sent Events, with
   a heartbeat, and the connection reconnects after a drop.
 - Updates reach viewers connected to **either** bidding replica (Redis pub/sub fan-out).
-- **Endpoint:** `GET /auctions/:id/stream`. (Whether this endpoint needs a token is open, see
-  proposal 1 in `docs/design-proposals.md`.)
+- **Endpoint:** `GET /auctions/:id/stream`. It needs no token and pushes only public data, because
+  the native `EventSource` cannot send an `Authorization` header (proposal 1, accepted).
 
 ### FR-10 Automatic closing and winner
 
@@ -354,7 +356,7 @@ sequenceDiagram
   S->>AU: PATCH /auctions/:id (only while DRAFT)
   S->>AU: POST /auctions/:id/publish
   AU->>AU: DRAFT -> PUBLISHED
-  AU->>Q: auction event (after commit)
+  AU->>Q: auction.published (after commit)
   Q->>B: build local auction snapshot
 ```
 
@@ -435,8 +437,8 @@ them starts, and this document is updated.
 | Q4  | Who can open a `DRAFT` auction by ID?                                        | **Decided 30.10.2026:** its seller and admins. Everyone else gets `404`                                        | Erona                 | A-11       |
 | Q5  | Are the performance targets in NFR-P2 and NFR-P3 right for the demo machine? | keep, or adjust after the first k6 run                                                                         | Anesa (B-19)          | B-19       |
 
-- Design proposals 1, 2 and 4 in `docs/design-proposals.md` (public SSE stream, cancel through
-  bidding-service, renaming `auction.created`) wait for Anesa's agreement. FR-04, FR-09 and the
-  event names in P2 are updated once they are decided.
+- Design proposals 1 to 4 in `docs/design-proposals.md` are accepted (Anesa, 02.11.2026) and
+  recorded in `docs/events.md`. The SSE part of Q3 is answered by proposal 1; bid history and live
+  state are still for Anesa to decide in B-08.
 - Questions for the professor are listed in `ROADMAP.md` §8 (Kubernetes, required topics,
   frontend grading, AI disclosure format, documentation language).
