@@ -1,27 +1,4 @@
-# Task Division: Online Auction Platform
-
-**Erona:** tasks `A-01` to `A-31`  **Anesa:** tasks `B-01` to `B-25`
-
-> **Replanned on 30.10.2026** for the new hard deadline of **Mon 16.11.2026** (internal target Sat 14.11). See `ROADMAP.md` §7. Task IDs are unchanged: `A-xx` belongs to Erona and `B-xx` belongs to Anesa. Scope changes that touch Anesa's tasks are marked **proposed, Anesa to confirm** and do not take effect until she agrees.
-
-Estimated hours: **Erona 126 h**, **Anesa 146 h** (core MVP, see the balance table). Hours are estimates, not promises. Re-estimate at the daily sync.
-
-How to read this file:
-- `Due` is the end of the sprint from `ROADMAP.md` §7 in which the task must be merged.
-- `Deps` lists tasks that must be finished, or stubbed, first. Deps marked *(implicit)* follow from `CLAUDE.md` rules (every service must use the shared logger and error handler from B-02) and were added in the replan.
-- `Status` (Erona's tasks only) is one of:
-  - **Ready**: can start now
-  - **Ready after A-xx**: waits only for Erona's own earlier task
-  - **Blocked: B-xx**: pending until Anesa's task is merged. Do not start it.
-  - **Waits for ... (→ B-xx)**: waits for Erona's own task, which is itself blocked by Anesa
-- Anesa keeps the status of her own tasks. Nothing here marks her work as started or done.
-- Tick the `Done` box only when the Definition of Done in `ROADMAP.md` is met.
-- Branch naming: `feat/A-11-auction-crud`. One PR per task, reviewed by the **other** member.
-
----
-
-## Balance summary
-
+In review (`authenticate()` and `requireRole()` use the shared errors from B-02) | [x] |Ready after A-05 and A-06 (B-02 pushed)Ready after A-07 (B-02 pushed)Ready after A-07, A-08Ready after A-05, A-10 (B-02 pushed)Ready after A-11Ready after A-11 (B-01, B-02, B-03 pushed)Ready after A-11Ready after A-11 to A-14Ready after A-05, A-16 (B-02 pushed)Blocked: B-11 (closing worker); B-02 pushedWaits for A-18 (→ B-11)Waits for A-20 and the servicesWaits for A-15, A-19 (→ B-11)Waits for A-07, A-12Waits for A-25Waits for A-25, A-17
 | Area | Erona (h) | Anesa (h) | Notes |
 |---|---|---|---|
 | Backend services and shared code | 57 | 80 | Anesa owns the hardest domain code (bidding), Erona owns 3 of the 5 services |
@@ -58,7 +35,7 @@ Anesa's numbers include the proposed cuts to B-15, B-17, B-20 and B-25. Her othe
 | A-10 | auction-service: SQL schema (auctions, categories, images) and seed (categories, sample auctions). Watchlist table moved to stretch | 3 | Tue 03.11 | A-04 | In review (verified on Postgres 16 and loaded into the running stack) | [x] |
 | A-11 | auction-service: create, edit, publish, cancel, delete auction with ownership and state rules | 8 | Sun 08.11 | A-05, A-10, B-02 *(implicit)* | Blocked: B-02 | [ ] |
 | A-12 | auction-service: list, search, filter, sort, paginate (parameterized queries, indexes) | 4 | Wed 11.11 | A-11 | Waits for A-11 (→ B-02) | [ ] |
-| A-13 | auction-service: publish `auction.created/cancelled`; consume `auction.extended`, `auction.closed`, `payment.*` to update status | 5 | Wed 11.11 | A-11, B-01, B-02, B-03 | Blocked: B-01, B-02, B-03 | [ ] |
+| A-13 | auction-service: publish `auction.published/cancelled`; consume `auction.extended`, `auction.closed`, `payment.*` to update status | 5 | Wed 11.11 | A-11, B-01, B-02, B-03 | Blocked: B-01, B-02, B-03 | [ ] |
 | A-14 | auction-service: admin category management (`POST /categories`). Watchlist endpoints moved to stretch | 2 | Wed 11.11 | A-11 | Waits for A-11 (→ B-02) | [ ] |
 | A-15 | auction-service tests | 4 | Fri 13.11 | A-11, A-12, A-13, A-14 | Waits for A-11 to A-14 (→ B-01, B-02, B-03) | [ ] |
 | A-16 | payment-service: SQL schema (wallets, ledger_entries, settlements with unique `auction_id`) and seed | 3 | Tue 03.11 | A-04 | Ready after A-04 | [ ] |
