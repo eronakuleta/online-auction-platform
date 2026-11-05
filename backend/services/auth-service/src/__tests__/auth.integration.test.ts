@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { revokeTokenFamily } from '../repositories/refresh-token.repository';
 import { AUDIENCE, ISSUER, createTestContext, newUser, type TestContext } from './helpers';
 
 let ctx: TestContext;
@@ -290,6 +291,32 @@ describe('POST /auth/refresh', () => {
       expectError(await pending, 401, 'INVALID_REFRESH_TOKEN');
     } finally {
       other.release();
+    }
+  });
+
+  it('can revoke a token created after the revoking transaction started', async () => {
+    const { tokens } = await registerAndLogin();
+    const stored = await ctx.pool.query<{ family_id: string; user_id: string }>(
+      'SELECT family_id, user_id FROM refresh_tokens WHERE token_hash = $1',
+      [sha256(tokens.refreshToken)],
+    );
+    const family = stored.rows[0];
+    const waiting = await ctx.pool.connect();
+    try {
+      // This transaction starts first, as one does when it then waits on a row lock.
+      await waiting.query('BEGIN');
+      await waiting.query('SELECT now()');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      await ctx.pool.query(
+        `INSERT INTO refresh_tokens (user_id, family_id, token_hash, expires_at)
+         VALUES ($1, $2, $3, now() + interval '1 hour')`,
+        [family?.user_id, family?.family_id, sha256('a newer token')],
+      );
+
+      await expect(revokeTokenFamily(waiting, family?.family_id ?? '')).resolves.toBeUndefined();
+      await waiting.query('COMMIT');
+    } finally {
+      waiting.release();
     }
   });
 
