@@ -51,3 +51,39 @@ export const updateAuctionBodySchema = z
   })
   .partial()
   .refine((changes) => Object.keys(changes).length > 0, 'At least one field is required');
+
+const queryCents = z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
+
+// GET /auctions. Values outside the limits are a 400 (docs/events.md section 9). A draft is never in
+// the catalog, so DRAFT is not a valid status here.
+export const listAuctionsQuerySchema = z
+  .strictObject({
+    q: z.string().trim().min(1).max(100).refine(withoutNul, 'Invalid character').optional(),
+    categoryId: z.uuid().optional(),
+    status: z
+      .enum([
+        'PUBLISHED',
+        'CANCELLED',
+        'CLOSED_SOLD',
+        'CLOSED_NO_SALE',
+        'SETTLED',
+        'PAYMENT_FAILED',
+      ])
+      .default('PUBLISHED'),
+    minPriceCents: queryCents.optional(),
+    maxPriceCents: queryCents.optional(),
+    sort: z.enum(['newest', 'ending_soon', 'price_asc', 'price_desc', 'relevance']).optional(),
+    page: z.coerce.number().int().min(1).max(1_000_000).default(1),
+    size: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .refine(
+    (query) =>
+      query.minPriceCents === undefined ||
+      query.maxPriceCents === undefined ||
+      query.minPriceCents <= query.maxPriceCents,
+    { path: ['maxPriceCents'], message: 'Must not be lower than minPriceCents' },
+  )
+  .refine((query) => query.sort !== 'relevance' || query.q !== undefined, {
+    path: ['sort'],
+    message: 'Sorting by relevance needs a search term (q)',
+  });

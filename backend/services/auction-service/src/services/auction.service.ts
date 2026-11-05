@@ -14,12 +14,15 @@ import {
   findAuctionById,
   findAuctionForUpdate,
   insertAuction,
+  listAuctions,
   markAuctionCancelled,
   markAuctionPublished,
   replaceAuctionImages,
   updateAuctionDetails,
   type Auction,
   type AuctionDetails,
+  type AuctionListFilter,
+  type AuctionSort,
 } from '../repositories/auction.repository';
 import { withTransaction, type Queryable } from '../repositories/database';
 
@@ -33,6 +36,12 @@ export interface AuctionServiceDependencies {
 
 export type NewAuction = AuctionDetails & { imageUrls: string[] };
 export type AuctionChanges = Partial<NewAuction>;
+
+export type CatalogQuery = Omit<AuctionListFilter, 'sort' | 'limit' | 'offset'> & {
+  sort?: AuctionSort;
+  page: number;
+  size: number;
+};
 
 function isAdmin(user: AuthUser): boolean {
   return hasAnyRole(user, ['ADMIN']);
@@ -107,6 +116,18 @@ export function createAuctionService(deps: AuctionServiceDependencies) {
       });
       logger.info({ auctionId: auction.id, sellerId: seller.id }, 'auction created');
       return auction;
+    },
+
+    /** The public catalog. With a search term the best matches come first, otherwise the newest. */
+    async list(query: CatalogQuery) {
+      const { page, size, sort, ...filters } = query;
+      const { auctions, total } = await listAuctions(pool, {
+        ...filters,
+        sort: sort ?? (filters.q === undefined ? 'newest' : 'relevance'),
+        limit: size,
+        offset: (page - 1) * size,
+      });
+      return { auctions, page, size, total };
     },
 
     async getById(id: string, viewer: AuthUser | undefined): Promise<Auction> {

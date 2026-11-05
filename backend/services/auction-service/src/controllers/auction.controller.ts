@@ -4,6 +4,7 @@ import type { Auction } from '../repositories/auction.repository';
 import {
   auctionIdParamsSchema,
   createAuctionBodySchema,
+  listAuctionsQuerySchema,
   updateAuctionBodySchema,
 } from '../schemas/auction.schemas';
 import { canManage, type AuctionService } from '../services/auction.service';
@@ -44,6 +45,16 @@ export function createAuctionController(auctionService: AuctionService) {
       .json(toAuctionResponse(auction, user));
   };
 
+  const list: RequestHandler = async (req, res) => {
+    const { auctions, ...pagination } = await auctionService.list(
+      listAuctionsQuerySchema.parse(req.query),
+    );
+    res.status(200).json({
+      data: auctions.map((auction) => toAuctionResponse(auction, req.user)),
+      ...pagination,
+    });
+  };
+
   const getById: RequestHandler = async (req, res) => {
     const { id } = auctionIdParamsSchema.parse(req.params);
     const auction = await auctionService.getById(id, req.user);
@@ -75,5 +86,5 @@ export function createAuctionController(auctionService: AuctionService) {
     res.status(204).end();
   };
 
-  return { create, getById, update, publish, cancel, remove };
+  return { create, list, getById, update, publish, cancel, remove };
 }
