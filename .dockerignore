@@ -1,0 +1,14 @@
+# Keeps secrets and generated files out of Docker images.
+.git
+.claude
+.env
+.env.*
+secrets
+**/node_modules
+**/dist
+**/coverage
+docs
+tests
+database
+frontend/src
+*.md

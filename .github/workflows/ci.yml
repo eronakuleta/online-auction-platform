@@ -1,6 +1,5 @@
 # Continuous integration: every push and every PR to main must pass these checks before merging.
-# The database job applies every schema and seed to a real Postgres 16. Docker image builds
-# are added once services have Dockerfiles (after A-04).
+# Tests and the database job use a real Postgres 16. Each service's Docker image is built too.
 name: CI
 
 on:
@@ -24,7 +23,21 @@ jobs:
     name: Lint, typecheck, build and test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      # Integration tests use a real Postgres, never mocked repositories.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
       # Build-time value only; the real gateway URL comes from .env at runtime.
       VITE_API_BASE_URL: https://localhost:8443/api/v1
     steps:
@@ -54,6 +67,9 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Build the auth-service image
+        run: docker build -f backend/services/auth-service/Dockerfile .
 
   database:
     name: Database schemas and seeds

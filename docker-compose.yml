@@ -2,8 +2,9 @@
 #   docker compose up -d        start the infrastructure (waits for health checks)
 #   docker compose ps           every container should show "healthy"
 #   docker compose down -v      stop and delete data; the next `up` re-creates and re-seeds the DBs
-# Values come from .env (copy .env.example). The five services and the Nginx gateway are added
-# here as they are built (A-07 onwards, A-20); Prometheus comes with Anesa's monitoring profile.
+# Values come from .env (copy .env.example), and the JWT keys from `npm run gen-keys`. The other
+# services and the Nginx gateway are added here as they are built; Prometheus comes with Anesa's
+# monitoring profile.
 
 name: auction-platform
 
@@ -66,6 +67,47 @@ services:
       timeout: 10s
       retries: 12
       start_period: 20s
+    networks: [backend]
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: backend/services/auth-service/Dockerfile
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      AUTH_SERVICE_PORT: ${AUTH_SERVICE_PORT:-3001}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      AUTH_DB_NAME: ${AUTH_DB_NAME:-auth_db}
+      JWT_PRIVATE_KEY_PATH: /run/secrets/jwt_private.pem
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public.pem
+      JWT_ISSUER: ${JWT_ISSUER:-auction-auth-service}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-auction-platform}
+      JWT_ACCESS_TTL_SECONDS: ${JWT_ACCESS_TTL_SECONDS:-900}
+      JWT_REFRESH_TTL_SECONDS: ${JWT_REFRESH_TTL_SECONDS:-604800}
+    volumes:
+      # auth-service is the only service that gets the private key.
+      - ./secrets/jwt_private.pem:/run/secrets/jwt_private.pem:ro
+      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+    ports:
+      # Direct access for local testing, until the gateway exists (A-20).
+      - '127.0.0.1:${AUTH_SERVICE_PORT:-3001}:${AUTH_SERVICE_PORT:-3001}'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:' + process.env.AUTH_SERVICE_PORT + '/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
     networks: [backend]
     restart: unless-stopped
 

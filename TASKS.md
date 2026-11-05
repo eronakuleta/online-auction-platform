@@ -52,7 +52,7 @@ Anesa's numbers include the proposed cuts to B-15, B-17, B-20 and B-25. Her othe
 | A-04 | `docker-compose.yml` base: Postgres (5 DBs via init script), Redis, RabbitMQ, healthchecks, networks, env wiring (MailHog moved to stretch) | 4 | Tue 03.11 | A-01 | In review (5 DBs, Redis, RabbitMQ healthy; verified with `docker compose up`) | [x] |
 | A-05 | `backend/shared/auth`: JWT RS256 verify middleware, `requireRole()` RBAC, key-generation script | 4 | Tue 03.11 | A-01, B-02 *(implicit, for the 401/403 error classes)* | In review (`authenticate()` and `requireRole()` use the shared errors from B-02) | [x] |
 | A-06 | auth-service: SQL schema (users, roles, refresh_tokens) and seed (admin, demo users) | 3 | Tue 03.11 | A-04 | In review (verified on Postgres; mounted by A-04) | [x] |
-| A-07 | auth-service: register, login, refresh (rotation), logout, `GET/PATCH /users/me`, argon2id, zod validation | 8 | Sun 08.11 | A-05, A-06, B-02 *(implicit)* | Ready after A-05 and A-06 (B-02 pushed) | [ ] |
+| A-07 | auth-service: register, login, refresh (rotation), logout, `GET/PATCH /users/me`, argon2id, zod validation | 8 | Sun 08.11 | A-05, A-06, B-02 *(implicit)* | In review (52 integration tests on real Postgres; runs in Compose on port 3001) | [x] |
 | A-08 | auth-service: admin endpoints (list users, ban/unban, change roles) and `user.registered` event | 4 | Sun 08.11 | A-07, B-02 | Ready after A-07 (B-02 pushed) | [ ] |
 | A-09 | auth-service tests: unit and integration (valid, invalid, unauthorized, edge cases) | 4 | Wed 11.11 | A-07, A-08 | Ready after A-07, A-08 | [ ] |
 | A-10 | auction-service: SQL schema (auctions, categories, images) and seed (categories, sample auctions). Watchlist table moved to stretch | 3 | Tue 03.11 | A-04 | In review (verified on Postgres 16 and loaded into the running stack) | [x] |
@@ -67,7 +67,7 @@ Anesa's numbers include the proposed cuts to B-15, B-17, B-20 and B-25. Her othe
 | A-19 | payment-service tests (duplicate event, insufficient funds, rounding of fee) | 4 | Fri 13.11 | A-18 | Waits for A-18 (→ B-11) | [ ] |
 | A-20 | Gateway: Nginx routing table, TLS (self-signed) with documented local limits, rate limiting, block `/internal` | 5 | Sun 08.11 | A-04 | Ready after A-04 | [ ] |
 | A-21 | Gateway: load-balance bidding replicas (SSE-safe: buffering off, long read timeout) | 3 | Fri 13.11 | A-20, B-12 | Blocked: B-12 | [ ] |
-| A-22 | CI: GitHub Actions (lint, build, tests with service containers, docker build) | 4 | Tue 03.11 | A-04 | In progress: checks job, compose validation and Postgres 16 schema/seed job (same init script as Compose) run on every push; docker build steps follow the first service | [ ] |
+| A-22 | CI: GitHub Actions (lint, build, tests with service containers, docker build) | 4 | Tue 03.11 | A-04 | In review (checks with Postgres, compose validation, schema/seed job, image build; each new service adds its image) | [x] |
 | A-23 | Security hardening: helmet, CORS allow-list, body limits, login throttling, secrets audit; security test suite (SQLi payloads, missing/expired/forged JWT, RBAC matrix) | 6 | Fri 13.11 | A-20, A-07, A-11, A-17 | Waits for A-20 and the services | [ ] |
 | A-24 | OpenAPI 3 specs for auth, auction, payment plus Swagger UI | 4 | Sat 14.11 | A-15, A-19 | Waits for A-15, A-19 (→ B-11) | [ ] |
 | A-25 | Frontend: auth context with token refresh and role-based route guards, auth pages, catalog browse/search/filter, auction detail (read-only) | 5 | Wed 11.11 | A-07, A-12 | Waits for A-07, A-12 | [ ] |
