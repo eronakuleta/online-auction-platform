@@ -143,7 +143,9 @@ Priority uses MoSCoW: **M** = must (core MVP), **S** = should, **C** = could (st
 ### FR-05 Catalog search and categories
 
 - Anyone lists auctions with full-text search (`q`), filters (category, status, price range),
-  sorting and pagination (`?page=1&size=20`, size capped at 100).
+  sorting and pagination (`?page=1&size=20`, size capped at 100). The price-range filter uses
+  the starting price: the live highest bid belongs to bidding-service, and auction-service never
+  reads another service's database.
 - Anyone views auction details and lists categories. An admin creates categories.
 - Drafts are not shown in the public catalog. `GET /auctions/:id` on a `DRAFT` returns it only to
   its seller and to admins; everyone else (including visitors and other sellers) gets `404`, not

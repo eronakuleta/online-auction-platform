@@ -55,7 +55,7 @@ Anesa's numbers include the proposed cuts to B-15, B-17, B-20 and B-25. Her othe
 | A-07 | auth-service: register, login, refresh (rotation), logout, `GET/PATCH /users/me`, argon2id, zod validation | 8 | Sun 08.11 | A-05, A-06, B-02 *(implicit)* | Blocked: B-02 | [ ] |
 | A-08 | auth-service: admin endpoints (list users, ban/unban, change roles) and `user.registered` event | 4 | Sun 08.11 | A-07, B-02 | Blocked: B-02 | [ ] |
 | A-09 | auth-service tests: unit and integration (valid, invalid, unauthorized, edge cases) | 4 | Wed 11.11 | A-07, A-08 | Waits for A-07, A-08 (→ B-02) | [ ] |
-| A-10 | auction-service: SQL schema (auctions, categories, images) and seed (categories, sample auctions). Watchlist table moved to stretch | 3 | Tue 03.11 | A-04 | Ready after A-04 | [ ] |
+| A-10 | auction-service: SQL schema (auctions, categories, images) and seed (categories, sample auctions). Watchlist table moved to stretch | 3 | Tue 03.11 | A-04 | In review (verified on Postgres 16 and loaded into the running stack) | [x] |
 | A-11 | auction-service: create, edit, publish, cancel, delete auction with ownership and state rules | 8 | Sun 08.11 | A-05, A-10, B-02 *(implicit)* | Blocked: B-02 | [ ] |
 | A-12 | auction-service: list, search, filter, sort, paginate (parameterized queries, indexes) | 4 | Wed 11.11 | A-11 | Waits for A-11 (→ B-02) | [ ] |
 | A-13 | auction-service: publish `auction.created/cancelled`; consume `auction.extended`, `auction.closed`, `payment.*` to update status | 5 | Wed 11.11 | A-11, B-01, B-02, B-03 | Blocked: B-01, B-02, B-03 | [ ] |
