@@ -17,3 +17,11 @@ How to explain each of Anesa's tasks (`B-xx`) at the defense. Short, in our own 
 - **The contract is enforced in code.** The publisher checks each payload with zod before sending, and the consumer checks it again on receipt. Money must be an integer above 0, so `10.5` fails at the publisher instead of corrupting another service.
 - **No message is lost on failure.** A message is acknowledged only after its handler succeeds. To retry, the consumer copies it to the retry queue, waits for the broker's confirm, and only then acknowledges. A crash in between gives a duplicate at worst, which idempotent consumers handle.
 - **Why a lost connection exits the process.** Reconnecting and re-subscribing correctly is a lot of code to get right. Exiting is simple and safe: Docker restarts the service, and unacknowledged messages are redelivered.
+
+## B-03 RabbitMQ topology
+
+- **Three queues per service.** The main queue receives events, the retry queue holds a failed message for 5 s, and the DLQ keeps messages that need a person to look at them. Retrying immediately would just fail again while the database is still down.
+- **How the delay works without a plugin.** The retry queue has a message TTL and no consumers. When the TTL expires, RabbitMQ dead-letters the message back to the main queue.
+- **Why retries skip the topic exchange.** They go through the default exchange, which routes by queue name. Republishing to the topic would hand the message again to every service, including those that already processed it.
+- **Why all queues are declared together.** A topic exchange drops a message that no queue is bound to. Declaring every service's queues at setup means `bid.placed` is kept for notification-service even if that service has not started yet.
+- **Safe to run repeatedly.** Declaring an existing queue with the same settings does nothing. That is why both `npm run rabbitmq:setup` and each service at startup can do it. Changing a queue's arguments later requires deleting the queue first, or RabbitMQ refuses the declaration.

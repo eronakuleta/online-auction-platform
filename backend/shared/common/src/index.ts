@@ -48,3 +48,4 @@ export {
   queueNames,
 } from './events/topology';
 export type { ConsumerService } from './events/topology';
+export { setupTopology } from './events/setup-topology';

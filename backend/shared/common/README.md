@@ -69,3 +69,13 @@ await bus.subscribe('auction-service', {
 // On shutdown:
 await bus.close();
 ```
+
+## Tests
+
+`npm test -w @auction/shared-common` runs without a broker. To also run the tests against a real
+RabbitMQ, including the retry and dead-letter path (about 20 s):
+
+```bash
+docker compose up -d rabbitmq
+RABBITMQ_TEST_URL=amqp://auction:change-me-rabbit@localhost:5672 npm test -w @auction/shared-common
+```

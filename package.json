@@ -23,7 +23,8 @@
     "gen-keys": "node backend/shared/auth/scripts/gen-keys.mjs",
     "build:shared": "npm run build -w @auction/shared-common && npm run build -w @auction/shared-auth",
     "pretypecheck": "npm run build:shared",
-    "pretest": "npm run build:shared"
+    "pretest": "npm run build:shared",
+    "rabbitmq:setup": "npm run build -w @auction/shared-common && node scripts/setup-rabbitmq.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
