@@ -61,7 +61,7 @@ Anesa's numbers include the proposed cuts to B-15, B-17, B-20 and B-25. Her othe
 | A-13 | auction-service: publish `auction.published/cancelled`; consume `auction.extended`, `auction.closed`, `payment.*` to update status | 5 | Wed 11.11 | A-11, B-01, B-02, B-03 | Ready after A-11 (B-01, B-02, B-03 pushed) | [ ] |
 | A-14 | auction-service: admin category management (`POST /categories`). Watchlist endpoints moved to stretch | 2 | Wed 11.11 | A-11 | Ready after A-11 | [ ] |
 | A-15 | auction-service tests | 4 | Fri 13.11 | A-11, A-12, A-13, A-14 | Ready after A-11 to A-14 | [ ] |
-| A-16 | payment-service: SQL schema (wallets, ledger_entries, settlements with unique `auction_id`) and seed | 3 | Tue 03.11 | A-04 | Ready after A-04 | [ ] |
+| A-16 | payment-service: SQL schema (wallets, ledger_entries, settlements with unique `auction_id`) and seed | 3 | Tue 03.11 | A-04 | In review (verified on Postgres 16 and loaded into the running stack) | [x] |
 | A-17 | payment-service: wallet balance, simulated deposit, history, internal funds-check endpoint (blocked at gateway) | 5 | Sun 08.11 | A-05, A-16, B-02 *(implicit)* | Ready after A-05, A-16 (B-02 pushed) | [ ] |
 | A-18 | payment-service: settlement consumer on `auction.closed` (atomic debit, credit, fee; idempotent; publishes `payment.completed/failed`) | 8 | Wed 11.11 | A-17, B-02, B-11 | Blocked: B-11 (closing worker); B-02 pushed | [ ] |
 | A-19 | payment-service tests (duplicate event, insufficient funds, rounding of fee) | 4 | Fri 13.11 | A-18 | Waits for A-18 (→ B-11) | [ ] |

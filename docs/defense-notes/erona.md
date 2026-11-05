@@ -67,3 +67,11 @@ How to explain each of Erona's tasks (`A-xx`) at the defense. Short, in our own 
 - **It fails closed.** If someone forgets `authenticate()` on a route, `requireRole()` answers 401 instead of letting the request through. `requireRole()` with no roles crashes at startup, so a route can never be accidentally open.
 - **Unexpected errors stay 500.** Only `TokenVerificationError` becomes a 401, so a bug in the verifier is logged and not hidden as "bad token".
 - **Reuse, not duplication.** The middleware throws Anesa's `UnauthorizedError` and `ForbiddenError` (B-02), and her error handler produces the standard body with the `requestId`. 14 Supertest tests cover this through a real Express app.
+
+## A-16 payment_db schema and seed
+
+- **Three tables.** `wallets` (one per user, plus exactly one `PLATFORM` wallet for fees), `settlements` (one per auction) and `ledger_entries` (one row per balance change, so every balance can be explained and recomputed).
+- **The database refuses to lose money.** `balance_cents >= 0` makes overspending impossible even with a bug in the service, `fee_cents + seller_cents = amount_cents` means a split can never lose or create a cent, and all amounts are `bigint` cents, so decimals are rejected.
+- **Idempotency through natural keys.** `UNIQUE (auction_id)` on settlements makes a replayed `auction.closed` do nothing, and `UNIQUE (user_id)` on wallets does the same for `user.registered`. So this database needs no `processed_events` table.
+- **Failed payments are stored too.** A `FAILED` row also takes the auction's one settlement slot. Otherwise a replay could succeed after a deposit and contradict the `payment.failed` event already sent.
+- **Seed and proof.** Wallets for all demo users, with a `DEPOSIT` ledger row behind every starting balance. Verified on Postgres 16 with 25 valid and invalid cases, plus one full settlement (debit, seller credit, fee).
