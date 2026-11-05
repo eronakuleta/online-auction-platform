@@ -2,16 +2,17 @@
 import { createPrivateKey } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createTokenVerifier, loadPublicKey } from '@auction/shared-auth';
-import { createLogger } from '@auction/shared-common';
+import { connectEventBus, createLogger } from '@auction/shared-common';
 import { createApp } from './app';
 import { loadConfig } from './config';
 import { createPool } from './repositories/database';
 import { createAuthService } from './services/auth.service';
 import { createAccessTokenSigner } from './services/tokens';
+import { createUserAdminService } from './services/user-admin.service';
 
 const logger = createLogger({ service: 'auth-service' });
 
-function main(): void {
+async function main(): Promise<void> {
   const config = loadConfig();
   const { jwt } = config;
 
@@ -29,30 +30,37 @@ function main(): void {
     issuer: jwt.issuer,
     audience: jwt.audience,
   });
+  // auth-service only publishes, so it has no queues of its own.
+  const bus = await connectEventBus({
+    url: config.events.rabbitmqUrl,
+    exchange: config.events.exchange,
+    logger,
+  });
   const authService = createAuthService({
     pool,
     signer,
     refreshTtlSeconds: jwt.refreshTtlSeconds,
+    publish: bus.publish,
     logger,
   });
+  const userAdminService = createUserAdminService({ pool, logger });
 
-  const server = createApp({ pool, authService, verifyToken, logger }).listen(config.port, () => {
+  const app = createApp({ pool, authService, userAdminService, verifyToken, logger });
+  const server = app.listen(config.port, () => {
     logger.info({ port: config.port }, 'auth-service listening');
   });
 
   const shutdown = (signal: string) => {
     logger.info({ signal }, 'shutting down');
     server.close(() => {
-      void pool.end().then(() => process.exit(0));
+      void Promise.allSettled([bus.close(), pool.end()]).then(() => process.exit(0));
     });
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
-try {
-  main();
-} catch (err) {
+main().catch((err: unknown) => {
   logger.fatal({ err }, 'auth-service failed to start');
   process.exit(1);
-}
+});

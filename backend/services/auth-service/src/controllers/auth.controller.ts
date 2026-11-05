@@ -1,6 +1,5 @@
 import { getAuthUser } from '@auction/shared-auth';
 import type { RequestHandler } from 'express';
-import type { User } from '../repositories/user.repository';
 import {
   loginBodySchema,
   refreshTokenBodySchema,
@@ -8,19 +7,7 @@ import {
   updateProfileBodySchema,
 } from '../schemas/auth.schemas';
 import type { AuthService, TokenPair } from '../services/auth.service';
-
-/** What clients may see of a user. The password hash is never included. */
-function toUserResponse(user: User) {
-  return {
-    id: user.id,
-    email: user.email,
-    displayName: user.displayName,
-    status: user.status,
-    roles: user.roles,
-    createdAt: user.createdAt.toISOString(),
-    updatedAt: user.updatedAt.toISOString(),
-  };
-}
+import { toUserResponse } from './user-response';
 
 function toTokenResponse(tokens: TokenPair) {
   return {

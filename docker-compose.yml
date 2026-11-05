@@ -88,6 +88,8 @@ services:
       JWT_AUDIENCE: ${JWT_AUDIENCE:-auction-platform}
       JWT_ACCESS_TTL_SECONDS: ${JWT_ACCESS_TTL_SECONDS:-900}
       JWT_REFRESH_TTL_SECONDS: ${JWT_REFRESH_TTL_SECONDS:-604800}
+      RABBITMQ_URL: ${RABBITMQ_URL:?set RABBITMQ_URL in .env}
+      EVENTS_EXCHANGE: ${EVENTS_EXCHANGE:-auction.events}
     volumes:
       # auth-service is the only service that gets the private key.
       - ./secrets/jwt_private.pem:/run/secrets/jwt_private.pem:ro
@@ -97,6 +99,8 @@ services:
       - '127.0.0.1:${AUTH_SERVICE_PORT:-3001}:${AUTH_SERVICE_PORT:-3001}'
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test:

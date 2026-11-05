@@ -112,7 +112,12 @@ Priority uses MoSCoW: **M** = must (core MVP), **S** = should, **C** = could (st
 - An admin lists users with pagination, bans and unbans users, and changes their roles. This is
   the only way a user becomes a `SELLER` (decision Q1). Roles travel inside the access token, so
   a role change takes effect at the user's next login or token refresh (within 15 minutes).
-- Registration publishes `user.registered` so other services can react (welcome notification).
+- Banning ends all the user's sessions at once: login and refresh stop working. Unbanning does not
+  restore them; the user logs in again.
+- Roles are set as a full list of `BIDDER` and `SELLER`. `ADMIN` accounts are only seeded: this API
+  cannot grant or remove `ADMIN`, ban an admin, or change an admin's roles (`409`, decision Q6).
+- Registration publishes `user.registered` (after the commit) so other services can react: payment
+  creates the wallet, notification sends the welcome message.
 - **Endpoints:** `GET /users`, `PATCH /users/:id/status`, `PATCH /users/:id/roles`.
 
 ### FR-04 Auction lifecycle for sellers
@@ -429,13 +434,14 @@ sequenceDiagram
 These are rules that `ROADMAP.md` does not decide. They are answered before the task that needs
 them starts, and this document is updated.
 
-| ID  | Question                                                                     | Options                                                                                                        | Decided by            | Needed for |
-| --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------- | ---------- |
-| Q1  | How does a user become a `SELLER`?                                           | **Decided 30.10.2026:** only an admin grants it (`PATCH /users/:id/roles`). Registration always gives `BIDDER` | Erona                 | A-07, A-08 |
-| Q2  | Which profile fields can `PATCH /users/me` change?                           | **Decided 30.10.2026:** `displayName` only. Email stays fixed, because it is the login identifier              | Erona                 | A-07       |
-| Q3  | Do bid history, live state and the SSE stream need a token?                  | public read-only (like the catalog), or logged-in users only                                                   | Anesa (her endpoints) | B-08, B-12 |
-| Q4  | Who can open a `DRAFT` auction by ID?                                        | **Decided 30.10.2026:** its seller and admins. Everyone else gets `404`                                        | Erona                 | A-11       |
-| Q5  | Are the performance targets in NFR-P2 and NFR-P3 right for the demo machine? | keep, or adjust after the first k6 run                                                                         | Anesa (B-19)          | B-19       |
+| ID  | Question                                                                     | Options                                                                                                                                                                                               | Decided by            | Needed for |
+| --- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ---------- |
+| Q1  | How does a user become a `SELLER`?                                           | **Decided 30.10.2026:** only an admin grants it (`PATCH /users/:id/roles`). Registration always gives `BIDDER`                                                                                        | Erona                 | A-07, A-08 |
+| Q2  | Which profile fields can `PATCH /users/me` change?                           | **Decided 30.10.2026:** `displayName` only. Email stays fixed, because it is the login identifier                                                                                                     | Erona                 | A-07       |
+| Q3  | Do bid history, live state and the SSE stream need a token?                  | public read-only (like the catalog), or logged-in users only                                                                                                                                          | Anesa (her endpoints) | B-08, B-12 |
+| Q4  | Who can open a `DRAFT` auction by ID?                                        | **Decided 30.10.2026:** its seller and admins. Everyone else gets `404`                                                                                                                               | Erona                 | A-11       |
+| Q5  | Are the performance targets in NFR-P2 and NFR-P3 right for the demo machine? | keep, or adjust after the first k6 run                                                                                                                                                                | Anesa (B-19)          | B-19       |
+| Q6  | Can the API create or change admins?                                         | **Proposed 05.11.2026, Erona to confirm:** no. `ROADMAP.md` says ADMIN is seeded, so admins are not created, banned or changed through the API. This also means nobody can lock everyone out of admin | Erona                 | A-08       |
 
 - Design proposals 1 to 4 in `docs/design-proposals.md` are accepted (Anesa, 02.11.2026) and
   recorded in `docs/events.md`. The SSE part of Q3 is answered by proposal 1; bid history and live

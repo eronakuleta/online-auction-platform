@@ -12,17 +12,19 @@ import type { Pool } from 'pg';
 import { pingDatabase } from './repositories/database';
 import { createRoutes } from './routes';
 import type { AuthService } from './services/auth.service';
+import type { UserAdminService } from './services/user-admin.service';
 
 export interface AppDependencies {
   pool: Pool;
   authService: AuthService;
+  userAdminService: UserAdminService;
   verifyToken: TokenVerifier;
   logger: Logger;
 }
 
 /** Builds the Express app without listening, so tests can call it directly. */
 export function createApp(deps: AppDependencies): Express {
-  const { pool, authService, verifyToken, logger } = deps;
+  const { pool, authService, userAdminService, verifyToken, logger } = deps;
   const app = express();
   app.disable('x-powered-by');
 
@@ -41,7 +43,7 @@ export function createApp(deps: AppDependencies): Express {
     res.status(200).json({ status: 'ok' });
   });
 
-  app.use('/api/v1', createRoutes(authService, verifyToken));
+  app.use('/api/v1', createRoutes({ authService, userAdminService, verifyToken }));
 
   app.use(notFoundHandler());
   app.use(createErrorHandler(logger));

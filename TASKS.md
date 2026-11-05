@@ -53,8 +53,8 @@ Anesa's numbers include the proposed cuts to B-15, B-17, B-20 and B-25. Her othe
 | A-05 | `backend/shared/auth`: JWT RS256 verify middleware, `requireRole()` RBAC, key-generation script | 4 | Tue 03.11 | A-01, B-02 *(implicit, for the 401/403 error classes)* | In review (`authenticate()` and `requireRole()` use the shared errors from B-02) | [x] |
 | A-06 | auth-service: SQL schema (users, roles, refresh_tokens) and seed (admin, demo users) | 3 | Tue 03.11 | A-04 | In review (verified on Postgres; mounted by A-04) | [x] |
 | A-07 | auth-service: register, login, refresh (rotation), logout, `GET/PATCH /users/me`, argon2id, zod validation | 8 | Sun 08.11 | A-05, A-06, B-02 *(implicit)* | In review (52 integration tests on real Postgres; runs in Compose on port 3001) | [x] |
-| A-08 | auth-service: admin endpoints (list users, ban/unban, change roles) and `user.registered` event | 4 | Sun 08.11 | A-07, B-02 | Ready after A-07 (B-02 pushed) | [ ] |
-| A-09 | auth-service tests: unit and integration (valid, invalid, unauthorized, edge cases) | 4 | Wed 11.11 | A-07, A-08 | Ready after A-07, A-08 | [ ] |
+| A-08 | auth-service: admin endpoints (list users, ban/unban, change roles) and `user.registered` event | 4 | Sun 08.11 | A-07, B-02 | In review (admin endpoints and `user.registered` verified against a real RabbitMQ) | [x] |
+| A-09 | auth-service tests: unit and integration (valid, invalid, unauthorized, edge cases) | 4 | Wed 11.11 | A-07, A-08 | Ready (94 tests already written with A-07 and A-08; fill any gaps and record evidence) | [ ] |
 | A-10 | auction-service: SQL schema (auctions, categories, images) and seed (categories, sample auctions). Watchlist table moved to stretch | 3 | Tue 03.11 | A-04 | In review (verified on Postgres 16 and loaded into the running stack) | [x] |
 | A-11 | auction-service: create, edit, publish, cancel, delete auction with ownership and state rules | 8 | Sun 08.11 | A-05, A-10, B-02 *(implicit)* | Ready after A-05, A-10 (B-02 pushed) | [ ] |
 | A-12 | auction-service: list, search, filter, sort, paginate (parameterized queries, indexes) | 4 | Wed 11.11 | A-11 | Ready after A-11 | [ ] |
