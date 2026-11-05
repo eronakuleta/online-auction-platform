@@ -2,6 +2,6 @@
 
 One line per member per sprint: what was done, task IDs, PR links. Add only your own entries.
 
-| Week                     | Member | Work                                                                                                                       | Tasks                                    | PRs    |
-| ------------------------ | ------ | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------ |
-| Sprint 1 (30.10 – 03.11) | Erona  | Repo skeleton, tooling, frontend scaffold, design review proposals, requirements, shared auth verification core, CI checks | A-01, A-02, A-05 (part 1), A-22 (part 1) | _link_ |
+| Week                     | Member | Work                                                                                                                                       | Tasks                                             | PRs    |
+| ------------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------- | ------ |
+| Sprint 1 (30.10 – 03.11) | Erona  | Repo skeleton, tooling, frontend scaffold, design review proposals, requirements, shared auth verification core, CI checks, auth_db schema | A-01, A-02, A-05 (part 1), A-06, A-22 (parts 1–2) | _link_ |
