@@ -67,7 +67,7 @@ Anesa's numbers include the proposed cuts to B-15, B-17, B-20 and B-25. Her othe
 | A-19 | payment-service tests (duplicate event, insufficient funds, rounding of fee) | 4 | Fri 13.11 | A-18 | Waits for A-18 (→ B-02, B-11) | [ ] |
 | A-20 | Gateway: Nginx routing table, TLS (self-signed) with documented local limits, rate limiting, block `/internal` | 5 | Sun 08.11 | A-04 | Ready after A-04 | [ ] |
 | A-21 | Gateway: load-balance bidding replicas (SSE-safe: buffering off, long read timeout) | 3 | Fri 13.11 | A-20, B-12 | Blocked: B-12 | [ ] |
-| A-22 | CI: GitHub Actions (lint, build, tests with service containers, docker build) | 4 | Tue 03.11 | A-04 | Ready after A-04 (docker build steps are added as services appear) | [ ] |
+| A-22 | CI: GitHub Actions (lint, build, tests with service containers, docker build) | 4 | Tue 03.11 | A-04 | In progress: lint, format, typecheck, build and test job runs on every push; Postgres service container and docker build steps follow A-04, A-06 and the first service | [ ] |
 | A-23 | Security hardening: helmet, CORS allow-list, body limits, login throttling, secrets audit; security test suite (SQLi payloads, missing/expired/forged JWT, RBAC matrix) | 6 | Fri 13.11 | A-20, A-07, A-11, A-17 | Waits for A-20 and the services (→ B-02) | [ ] |
 | A-24 | OpenAPI 3 specs for auth, auction, payment plus Swagger UI | 4 | Sat 14.11 | A-15, A-19 | Waits for A-15, A-19 (→ B-01, B-02, B-03, B-11) | [ ] |
 | A-25 | Frontend: auth context with token refresh and role-based route guards, auth pages, catalog browse/search/filter, auction detail (read-only) | 5 | Wed 11.11 | A-07, A-12 | Waits for A-07, A-12 (→ B-02) | [ ] |
