@@ -47,7 +47,7 @@ Anesa's numbers include the proposed cuts to B-15, B-17, B-20 and B-25. Her othe
 | ID | Task | Hrs | Due | Deps | Status | Done |
 |---|---|---|---|---|---|---|
 | A-01 | Repo skeleton: course folder structure, `.gitignore`, `.env.example`, PR template, branch rules, lint/format config; frontend scaffold (Vite + React + TS, React Router, MUI, TanStack Query, typed API client stub, `VITE_API_BASE_URL`) | 3 | Tue 03.11 | none | In review | [x] |
-| A-02 | `docs/requirements.md`: problem, goals, actors and roles, about 10 functional requirements, NFRs (security, performance, reliability, maintainability), data sources, main processes | 3 | Tue 03.11 | none | Ready | [ ] |
+| A-02 | `docs/requirements.md`: problem, goals, actors and roles, about 10 functional requirements, NFRs (security, performance, reliability, maintainability), data sources, main processes | 3 | Tue 03.11 | none | In review | [x] |
 | A-03 | `docs/architecture.md`: component diagram, service boundaries, sync vs async, ER diagrams of all 5 DBs, justification of microservices and DB choice | 3 | Sun 08.11 | B-01 | Blocked: B-01 | [ ] |
 | A-04 | `docker-compose.yml` base: Postgres (5 DBs via init script), Redis, RabbitMQ, healthchecks, networks, env wiring (MailHog moved to stretch) | 4 | Tue 03.11 | A-01 | Ready (needs Docker Desktop installed) | [ ] |
 | A-05 | `backend/shared/auth`: JWT RS256 verify middleware, `requireRole()` RBAC, key-generation script | 4 | Tue 03.11 | A-01, B-02 *(implicit, for the 401/403 error classes)* | Ready for the key script and token verification; error responses wait for B-02 | [ ] |
