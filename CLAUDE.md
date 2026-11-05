@@ -10,7 +10,7 @@ University group project (Web Services and Web APIs, hard deadline Mon 16.11.202
 4. Do **not** edit files owned by the other member without asking. If you need a change there, describe it and let the user raise it with their teammate.
 5. If a requirement is unclear, **ask**. Do not invent business rules that contradict `ROADMAP.md`.
 6. After finishing a task, give a short plain-language explanation of what was built and why. The students must defend it. Append 3 to 5 bullet points to `docs/defense-notes/<member>.md` (`erona.md` or `anesa.md`) ("how to explain this at the defense").
-7. **Academic integrity:** append an entry to `docs/ai-usage.md` for each task (date, task ID, what AI generated, what the student reviewed or changed). Add the trailer `Assisted-by: Claude Code` to commits. Prefer simple, readable code over clever code.
+7. **Academic integrity:** append an entry to `docs/ai-usage.md` for each task (date, task ID, what AI generated, what the student reviewed or changed). Commits are authored by the student who did the work, with their own Git identity; never add AI tools as author or co-author, and never add AI trailers to commit messages. The disclosure lives in `docs/ai-usage.md` only. Prefer simple, readable code over clever code.
 
 ## Ownership
 
