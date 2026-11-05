@@ -4,12 +4,13 @@ import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTokenVerifier } from '@auction/shared-auth';
-import { createLogger } from '@auction/shared-common';
+import { createEvent, createLogger, type DomainEvent, type Publish } from '@auction/shared-common';
 import type { Express } from 'express';
 import { Client, Pool } from 'pg';
 import { createApp } from '../app';
 import { createAuthService } from '../services/auth.service';
 import { createAccessTokenSigner } from '../services/tokens';
+import { createUserAdminService } from '../services/user-admin.service';
 
 // The default is the Docker Compose Postgres from .env.example. CI sets its own service container.
 const ADMIN_URL =
@@ -23,6 +24,10 @@ export interface TestContext {
   app: Express;
   pool: Pool;
   publicKey: ReturnType<typeof generateKeyPairSync>['publicKey'];
+  /** Events published so far. Built with createEvent, so they are checked against the contract. */
+  published: DomainEvent[];
+  /** Makes the next publish fail, as if the broker were down. */
+  failNextPublish(): void;
   close(): Promise<void>;
 }
 
@@ -57,12 +62,30 @@ export async function createTestContext(): Promise<TestContext> {
     ttlSeconds: 900,
   });
   const verifyToken = createTokenVerifier({ publicKey, issuer: ISSUER, audience: AUDIENCE });
-  const authService = createAuthService({ pool, signer, refreshTtlSeconds: 3600, logger });
+
+  const published: DomainEvent[] = [];
+  let publishFails = false;
+  const publish: Publish = async (type, payload) => {
+    if (publishFails) {
+      publishFails = false;
+      throw new Error('broker is down');
+    }
+    const event = createEvent(type, payload);
+    published.push(event as DomainEvent);
+    return event;
+  };
+
+  const authService = createAuthService({ pool, signer, refreshTtlSeconds: 3600, publish, logger });
+  const userAdminService = createUserAdminService({ pool, logger });
 
   return {
-    app: createApp({ pool, authService, verifyToken, logger }),
+    app: createApp({ pool, authService, userAdminService, verifyToken, logger }),
     pool,
     publicKey,
+    published,
+    failNextPublish() {
+      publishFails = true;
+    },
     async close() {
       await pool.end();
       await withAdminClient((client) =>

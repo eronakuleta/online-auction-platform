@@ -88,3 +88,53 @@ export async function updateDisplayName(
   );
   return rowCount ? findUserById(db, id) : null;
 }
+
+/** A page of users, newest first, with the total for pagination. */
+export async function listUsers(
+  db: Queryable,
+  options: { status?: UserStatus; limit: number; offset: number },
+): Promise<{ users: User[]; total: number }> {
+  const status = options.status ?? null;
+  const { rows } = await db.query<UserRow>(
+    `${SELECT_USER}
+     WHERE ($1::text IS NULL OR u.status = $1)
+     GROUP BY u.id
+     ORDER BY u.created_at DESC, u.id
+     LIMIT $2 OFFSET $3`,
+    [status, options.limit, options.offset],
+  );
+  const count = await db.query<{ total: string }>(
+    'SELECT count(*) AS total FROM users WHERE ($1::text IS NULL OR status = $1)',
+    [status],
+  );
+  return { users: rows.map(toUser), total: Number(count.rows[0]?.total ?? 0) };
+}
+
+/** Locks the user's row until the transaction ends, so parallel admin changes run in turn. */
+export async function findUserForUpdate(db: Queryable, id: string): Promise<User | null> {
+  const { rowCount } = await db.query('SELECT 1 FROM users WHERE id = $1 FOR UPDATE', [id]);
+  return rowCount ? findUserById(db, id) : null;
+}
+
+export async function updateUserStatus(
+  db: Queryable,
+  id: string,
+  status: UserStatus,
+): Promise<void> {
+  await db.query('UPDATE users SET status = $2, updated_at = now() WHERE id = $1', [id, status]);
+}
+
+/** Makes the user's roles exactly this list. */
+export async function replaceUserRoles(db: Queryable, id: string, roles: Role[]): Promise<void> {
+  await db.query('DELETE FROM user_roles WHERE user_id = $1 AND role <> ALL($2::text[])', [
+    id,
+    roles,
+  ]);
+  await db.query(
+    `INSERT INTO user_roles (user_id, role)
+     SELECT $1, unnest($2::text[])
+     ON CONFLICT (user_id, role) DO NOTHING`,
+    [id, roles],
+  );
+  await db.query('UPDATE users SET updated_at = now() WHERE id = $1', [id]);
+}

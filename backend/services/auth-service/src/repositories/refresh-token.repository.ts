@@ -1,5 +1,9 @@
 import type { Queryable } from './database';
 
+// Revocations use clock_timestamp(), not now(). now() is when the transaction started, and a
+// transaction that waited on a lock can start before a token it revokes was created. That would
+// break the CHECK revoked_at >= created_at and turn a refused refresh into a 500.
+
 export interface StoredRefreshToken {
   id: string;
   userId: string;
@@ -68,23 +72,31 @@ export async function markRefreshTokenReplaced(
   id: string,
   replacedBy: string,
 ): Promise<void> {
-  await db.query('UPDATE refresh_tokens SET revoked_at = now(), replaced_by = $2 WHERE id = $1', [
-    id,
-    replacedBy,
-  ]);
+  await db.query(
+    'UPDATE refresh_tokens SET revoked_at = clock_timestamp(), replaced_by = $2 WHERE id = $1',
+    [id, replacedBy],
+  );
 }
 
 export async function revokeTokenFamily(db: Queryable, familyId: string): Promise<void> {
   await db.query(
-    'UPDATE refresh_tokens SET revoked_at = now() WHERE family_id = $1 AND revoked_at IS NULL',
+    'UPDATE refresh_tokens SET revoked_at = clock_timestamp() WHERE family_id = $1 AND revoked_at IS NULL',
     [familyId],
+  );
+}
+
+/** Ends all of a user's sessions, on every device. */
+export async function revokeAllUserTokens(db: Queryable, userId: string): Promise<void> {
+  await db.query(
+    'UPDATE refresh_tokens SET revoked_at = clock_timestamp() WHERE user_id = $1 AND revoked_at IS NULL',
+    [userId],
   );
 }
 
 /** Revokes the whole family of a token. Does nothing for an unknown token. */
 export async function revokeFamilyOfToken(db: Queryable, tokenHash: string): Promise<void> {
   await db.query(
-    `UPDATE refresh_tokens SET revoked_at = now()
+    `UPDATE refresh_tokens SET revoked_at = clock_timestamp()
      WHERE revoked_at IS NULL
        AND family_id = (SELECT family_id FROM refresh_tokens WHERE token_hash = $1)`,
     [tokenHash],

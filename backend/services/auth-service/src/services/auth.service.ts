@@ -4,6 +4,7 @@ import {
   NotFoundError,
   UnauthorizedError,
   type Logger,
+  type Publish,
 } from '@auction/shared-common';
 import type { Pool } from 'pg';
 import { withTransaction, type Queryable } from '../repositories/database';
@@ -34,6 +35,7 @@ export interface AuthServiceDependencies {
   pool: Pool;
   signer: AccessTokenSigner;
   refreshTtlSeconds: number;
+  publish: Publish;
   logger: Logger;
 }
 
@@ -44,7 +46,7 @@ const invalidRefreshToken = () =>
   new UnauthorizedError('Invalid refresh token', 'INVALID_REFRESH_TOKEN');
 
 export function createAuthService(deps: AuthServiceDependencies) {
-  const { pool, signer, refreshTtlSeconds, logger } = deps;
+  const { pool, signer, refreshTtlSeconds, publish, logger } = deps;
 
   /** Stores a new refresh token (only its hash) and returns the raw value once. */
   async function issueRefreshToken(db: Queryable, userId: string, familyId: string) {
@@ -78,6 +80,14 @@ export function createAuthService(deps: AuthServiceDependencies) {
         throw new ConflictError('EMAIL_TAKEN', 'This email is already registered');
       }
       logger.info({ userId: user.id }, 'user registered');
+
+      // After the commit, as the contract requires. The account already exists, so a broker failure
+      // must not turn this into an error. The lost event is a known limitation (docs/events.md §7).
+      try {
+        await publish('user.registered', { userId: user.id, displayName: user.displayName });
+      } catch (err) {
+        logger.error({ err, userId: user.id }, 'could not publish user.registered');
+      }
       return user;
     },
 
