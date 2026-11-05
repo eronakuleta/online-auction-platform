@@ -1,5 +1,5 @@
-// Why a token was rejected. The HTTP middleware (added once the shared error classes from
-// B-02 exist) maps every reason to 401 with a generic message, so callers learn nothing more.
+// Why a token was rejected. authenticate() maps every reason to the same generic 401, so callers
+// learn nothing more.
 
 export type TokenRejectionReason = 'MISSING' | 'MALFORMED' | 'EXPIRED' | 'INVALID';
 

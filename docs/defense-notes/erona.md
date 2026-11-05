@@ -59,3 +59,11 @@ How to explain each of Erona's tasks (`A-xx`) at the defense. Short, in our own 
 - **The state machine is protected twice.** The service layer enforces valid transitions (A-11), and the database refuses impossible rows: a sold auction without winner or price, a winner on an unsold auction, the seller as winner, a closed auction without `closed_at`, a published one without `published_at`. Money columns are `bigint` cents, so `10.50` is rejected outright.
 - **Search and filters are indexed.** A generated `tsvector` column (English stemming, so "cameras" finds "camera") with a GIN index serves `?q=`; B-tree indexes cover status + end time, category, seller, price and creation date. The price filter uses the starting price, because the live highest bid belongs to bidding-service.
 - **Seed for the demo.** Six categories and six auctions of the demo seller: two live, one upcoming, two drafts and one closed without sale. Times are relative to when the database is created, so a fresh start always has live auctions. Verified with 23 constraint cases on Postgres 16.
+
+## A-05 Shared auth (part 2: Express middleware)
+
+- **`authenticate(verifyToken)`** reads the `Authorization: Bearer` header, verifies the token and sets `req.user`. Any bad token gets the same 401 "Authentication required", so an attacker cannot tell an expired token from a forged one.
+- **`requireRole('SELLER', 'ADMIN')`** runs after `authenticate()` and gives 403 unless the user has at least one of the roles. So no token is 401 ("who are you?") and the wrong role is 403 ("I know you, but no").
+- **It fails closed.** If someone forgets `authenticate()` on a route, `requireRole()` answers 401 instead of letting the request through. `requireRole()` with no roles crashes at startup, so a route can never be accidentally open.
+- **Unexpected errors stay 500.** Only `TokenVerificationError` becomes a 401, so a bug in the verifier is logged and not hidden as "bad token".
+- **Reuse, not duplication.** The middleware throws Anesa's `UnauthorizedError` and `ForbiddenError` (B-02), and her error handler produces the standard body with the `requestId`. 14 Supertest tests cover this through a real Express app.
