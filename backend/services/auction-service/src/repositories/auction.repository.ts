@@ -215,3 +215,84 @@ export async function markAuctionCancelled(db: Queryable, id: string): Promise<v
 export async function deleteAuction(db: Queryable, id: string): Promise<void> {
   await db.query('DELETE FROM auctions WHERE id = $1', [id]);
 }
+
+export type AuctionSort = 'newest' | 'ending_soon' | 'price_asc' | 'price_desc' | 'relevance';
+
+export interface AuctionListFilter {
+  q?: string;
+  categoryId?: string;
+  status: AuctionStatus;
+  minPriceCents?: number;
+  maxPriceCents?: number;
+  sort: AuctionSort;
+  limit: number;
+  offset: number;
+}
+
+// Sort keys are chosen from this fixed map, never from user input. The id at the end keeps the
+// order stable when two rows are equal, so pages never repeat or skip a row.
+const ORDER_BY: Record<Exclude<AuctionSort, 'relevance'>, string> = {
+  newest: 'a.published_at DESC, a.id',
+  ending_soon: 'a.ends_at ASC, a.id',
+  price_asc: 'a.starting_price_cents ASC, a.id',
+  price_desc: 'a.starting_price_cents DESC, a.id',
+};
+
+/**
+ * The public catalog. The WHERE clause is built only from fixed fragments, and every value is a
+ * $n parameter, so user input never becomes part of the SQL text. Building it per request (instead
+ * of "$1 IS NULL OR ...") lets Postgres use the indexes for the filters that are actually set.
+ */
+export async function listAuctions(
+  db: Queryable,
+  filter: AuctionListFilter,
+): Promise<{ auctions: Auction[]; total: number }> {
+  const values: unknown[] = [];
+  const param = (value: unknown) => {
+    values.push(value);
+    return '$' + values.length;
+  };
+
+  // A never-published auction (a draft, or a draft that was cancelled) is never in the catalog.
+  const conditions = ['a.published_at IS NOT NULL', 'a.status = ' + param(filter.status)];
+  let query: string | undefined;
+  if (filter.q !== undefined) {
+    // websearch_to_tsquery understands "quotes", OR and -minus, and never fails on odd input.
+    query = "websearch_to_tsquery('english', " + param(filter.q) + ')';
+    conditions.push('a.search_vector @@ ' + query);
+  }
+  if (filter.categoryId !== undefined) {
+    conditions.push('a.category_id = ' + param(filter.categoryId));
+  }
+  if (filter.minPriceCents !== undefined) {
+    conditions.push('a.starting_price_cents >= ' + param(filter.minPriceCents));
+  }
+  if (filter.maxPriceCents !== undefined) {
+    conditions.push('a.starting_price_cents <= ' + param(filter.maxPriceCents));
+  }
+  const where = conditions.join(' AND ');
+  const filterValues = [...values];
+
+  const orderBy =
+    filter.sort === 'relevance' && query !== undefined
+      ? 'ts_rank_cd(a.search_vector, ' + query + ') DESC, a.id'
+      : ORDER_BY[filter.sort === 'relevance' ? 'newest' : filter.sort];
+
+  const { rows } = await db.query<AuctionRow>(
+    SELECT_AUCTION +
+      ' WHERE ' +
+      where +
+      ' ORDER BY ' +
+      orderBy +
+      ' LIMIT ' +
+      param(filter.limit) +
+      ' OFFSET ' +
+      param(filter.offset),
+    values,
+  );
+  const count = await db.query<{ total: string }>(
+    'SELECT count(*) AS total FROM auctions a WHERE ' + where,
+    filterValues,
+  );
+  return { auctions: rows.map(toAuction), total: Number(count.rows[0]?.total ?? 0) };
+}

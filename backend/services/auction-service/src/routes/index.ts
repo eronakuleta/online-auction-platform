@@ -10,8 +10,11 @@ export function createRoutes(auctionService: AuctionService, verifyToken: TokenV
   const requireSeller = [requireLogin, requireRole('SELLER')];
   const router = Router();
 
+  const optionalLogin = optionalAuthenticate(verifyToken);
   router.post('/auctions', requireSeller, controller.create);
-  router.get('/auctions/:id', optionalAuthenticate(verifyToken), controller.getById);
+  // Public, like the catalog page. A logged-in seller also sees their own reserve prices.
+  router.get('/auctions', optionalLogin, controller.list);
+  router.get('/auctions/:id', optionalLogin, controller.getById);
   router.patch('/auctions/:id', requireSeller, controller.update);
   router.post('/auctions/:id/publish', requireSeller, controller.publish);
   // Admins can cancel too. That the seller owns the auction is checked in the service layer.

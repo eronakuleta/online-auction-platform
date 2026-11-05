@@ -57,7 +57,7 @@ Anesa's numbers include the proposed cuts to B-15, B-17, B-20 and B-25. Her othe
 | A-09 | auth-service tests: unit and integration (valid, invalid, unauthorized, edge cases) | 4 | Wed 11.11 | A-07, A-08 | Ready (94 tests already written with A-07 and A-08; fill any gaps and record evidence) | [ ] |
 | A-10 | auction-service: SQL schema (auctions, categories, images) and seed (categories, sample auctions). Watchlist table moved to stretch | 3 | Tue 03.11 | A-04 | In review (verified on Postgres 16 and loaded into the running stack) | [x] |
 | A-11 | auction-service: create, edit, publish, cancel, delete auction with ownership and state rules | 8 | Sun 08.11 | A-05, A-10, B-02 *(implicit)* | In review (90 tests on real Postgres. Events come with A-13; real cancel of a published auction needs B-06) | [x] |
-| A-12 | auction-service: list, search, filter, sort, paginate (parameterized queries, indexes) | 4 | Wed 11.11 | A-11 | Ready after A-11 | [ ] |
+| A-12 | auction-service: list, search, filter, sort, paginate (parameterized queries, indexes) | 4 | Wed 11.11 | A-11 | In review (42 tests on real Postgres; index chosen from EXPLAIN ANALYZE on 100,000 rows) | [x] |
 | A-13 | auction-service: publish `auction.published/cancelled`; consume `auction.extended`, `auction.closed`, `payment.*` to update status | 5 | Wed 11.11 | A-11, B-01, B-02, B-03 | Ready after A-11 (B-01, B-02, B-03 pushed) | [ ] |
 | A-14 | auction-service: admin category management (`POST /categories`). Watchlist endpoints moved to stretch | 2 | Wed 11.11 | A-11 | Ready after A-11 | [ ] |
 | A-15 | auction-service tests | 4 | Fri 13.11 | A-11, A-12, A-13, A-14 | Ready after A-11 to A-14 | [ ] |
