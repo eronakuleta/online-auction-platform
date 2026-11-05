@@ -24,7 +24,8 @@
     "build:shared": "npm run build -w @auction/shared-common && npm run build -w @auction/shared-auth",
     "pretypecheck": "npm run build:shared",
     "pretest": "npm run build:shared",
-    "rabbitmq:setup": "npm run build -w @auction/shared-common && node scripts/setup-rabbitmq.mjs"
+    "rabbitmq:setup": "npm run build -w @auction/shared-common && node scripts/setup-rabbitmq.mjs",
+    "test:gateway": "node --test tests/e2e/gateway-smoke.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

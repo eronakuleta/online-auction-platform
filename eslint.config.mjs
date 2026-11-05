@@ -25,7 +25,7 @@ export default tseslint.config(
   {
     files: [
       'backend/**/*.{ts,js,mjs}',
-      'tests/**/*.{ts,js}',
+      'tests/**/*.{ts,js,mjs}',
       'scripts/**/*.{ts,js,mjs}',
       '*.{js,mjs}',
     ],

@@ -2,9 +2,9 @@
 #   docker compose up -d        start the infrastructure (waits for health checks)
 #   docker compose ps           every container should show "healthy"
 #   docker compose down -v      stop and delete data; the next `up` re-creates and re-seeds the DBs
-# Values come from .env (copy .env.example), and the JWT keys from `npm run gen-keys`. The other
-# services and the Nginx gateway are added here as they are built; Prometheus comes with Anesa's
-# monitoring profile.
+# Values come from .env (copy .env.example), and the JWT keys from `npm run gen-keys`. The API is
+# reached only through the gateway: https://localhost:8443/api/v1 (gateway/README.md). The other
+# services are added here as they are built; Prometheus comes with Anesa's monitoring profile.
 
 name: auction-platform
 
@@ -94,9 +94,6 @@ services:
       # auth-service is the only service that gets the private key.
       - ./secrets/jwt_private.pem:/run/secrets/jwt_private.pem:ro
       - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
-    ports:
-      # Direct access for local testing, until the gateway exists (A-20).
-      - '127.0.0.1:${AUTH_SERVICE_PORT:-3001}:${AUTH_SERVICE_PORT:-3001}'
     depends_on:
       postgres:
         condition: service_healthy
@@ -136,9 +133,6 @@ services:
     volumes:
       # Only the public key: this service can verify tokens but never create them.
       - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
-    ports:
-      # Direct access for local testing, until the gateway exists (A-20).
-      - '127.0.0.1:${AUCTION_SERVICE_PORT:-3002}:${AUCTION_SERVICE_PORT:-3002}'
     depends_on:
       postgres:
         condition: service_healthy
@@ -155,9 +149,35 @@ services:
     networks: [backend]
     restart: unless-stopped
 
+  gateway:
+    build:
+      context: gateway
+    environment:
+      GATEWAY_HTTPS_PORT: ${GATEWAY_HTTPS_PORT:-8443}
+      GATEWAY_API_RATE: ${GATEWAY_API_RATE:-20r/s}
+      GATEWAY_API_BURST: ${GATEWAY_API_BURST:-40}
+      GATEWAY_AUTH_RATE: ${GATEWAY_AUTH_RATE:-10r/m}
+      GATEWAY_AUTH_BURST: ${GATEWAY_AUTH_BURST:-5}
+    volumes:
+      # The self-signed certificate is created here on first start (gitignored).
+      - ./gateway/certs:/etc/nginx/certs
+    ports:
+      # The only way into the API. Bound to localhost, like everything else in this file.
+      - '127.0.0.1:${GATEWAY_HTTP_PORT:-8080}:80'
+      - '127.0.0.1:${GATEWAY_HTTPS_PORT:-8443}:443'
+    # No depends_on: service names are resolved per request, so the gateway starts even while a
+    # service is missing and answers 503 for it.
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1/health']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+    restart: unless-stopped
+
 networks:
-  # Internal network shared by infrastructure and services. Only the gateway (A-20) will join a
-  # second, public-facing network.
+  # Internal network shared by infrastructure, services and the gateway. Only the gateway publishes
+  # an API port to the host.
   backend:
     name: auction-backend
 

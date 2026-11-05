@@ -1,5 +1,6 @@
 # Continuous integration: every push and every PR to main must pass these checks before merging.
-# Tests and the database job use a real Postgres 16. Each service's Docker image is built too.
+# Tests and the database job use a real Postgres 16. Each service's Docker image is built too, and
+# the gateway job starts the whole stack and tests it through the gateway.
 name: CI
 
 on:
@@ -108,3 +109,35 @@ jobs:
           POSTGRES_USER: postgres
           RERUN_SEEDS: '1'
         run: bash database/init-databases.sh
+
+  gateway:
+    name: Gateway smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js from .nvmrc
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      # Test values only: .env.example and keys made for this run, never real secrets.
+      - name: Prepare .env and JWT keys
+        run: |
+          cp .env.example .env
+          node backend/shared/auth/scripts/gen-keys.mjs
+
+      - name: Start the stack
+        run: docker compose up -d --build --wait --wait-timeout 300
+
+      # NODE_EXTRA_CA_CERTS trusts the gateway's self-signed certificate, so TLS is verified.
+      - name: Test through the gateway
+        env:
+          NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
+        run: node --test tests/e2e/gateway-smoke.mjs
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail 100
