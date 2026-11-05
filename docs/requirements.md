@@ -442,6 +442,8 @@ them starts, and this document is updated.
 | Q4  | Who can open a `DRAFT` auction by ID?                                        | **Decided 30.10.2026:** its seller and admins. Everyone else gets `404`                                                                                                            | Erona                 | A-11       |
 | Q5  | Are the performance targets in NFR-P2 and NFR-P3 right for the demo machine? | keep, or adjust after the first k6 run                                                                                                                                             | Anesa (B-19)          | B-19       |
 | Q6  | Can the API create or change admins?                                         | **Decided 05.11.2026:** no. `ROADMAP.md` says ADMIN is seeded, so admins are not created, banned or changed through the API. This also means nobody can lock everyone out of admin | Erona                 | A-08       |
+| Q7  | Can a draft be published after its end time has passed?                      | **Decided 05.11.2026:** no, `409 AUCTION_ALREADY_ENDED`, because bidding could never accept a bid. A start time in the past is allowed: the auction is live at once                | Erona                 | A-11       |
+| Q8  | Who can see the reserve price?                                               | **Decided 05.11.2026:** only the seller and admins. Showing it would let bidders bid exactly up to it                                                                              | Erona                 | A-11       |
 
 - Design proposals 1 to 4 in `docs/design-proposals.md` are accepted (Anesa, 02.11.2026) and
   recorded in `docs/events.md`. The SSE part of Q3 is answered by proposal 1; bid history and live

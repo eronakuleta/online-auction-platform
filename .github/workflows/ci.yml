@@ -71,6 +71,9 @@ jobs:
       - name: Build the auth-service image
         run: docker build -f backend/services/auth-service/Dockerfile .
 
+      - name: Build the auction-service image
+        run: docker build -f backend/services/auction-service/Dockerfile .
+
   database:
     name: Database schemas and seeds
     runs-on: ubuntu-latest
