@@ -1,16 +1,16 @@
 # Design proposals from the plan review (30.10.2026)
 
 Gaps found while reviewing `ROADMAP.md`, `TASKS.md` and `CLAUDE.md` before coding.
-Member A has accepted all four. Proposals 1, 2 and 4 change Member B's services or the event
-contract, so they become binding only when B agrees. B then records them in `docs/events.md`
+Erona has accepted all four. Proposals 1, 2 and 4 change Anesa's services or the event
+contract, so they become binding only when Anesa agrees. Anesa then records them in `docs/events.md`
 (B-01), and the roadmap is updated in the same PR.
 
-| #   | Proposal                                             | Owner affected           | Status                           |
-| --- | ---------------------------------------------------- | ------------------------ | -------------------------------- |
-| 1   | Public SSE stream                                    | B (bidding), A (gateway) | Accepted by A, **waiting for B** |
-| 2   | Cancel goes through bidding-service                  | A (auction), B (bidding) | Accepted by A, **waiting for B** |
-| 3   | payment-service creates wallets on `user.registered` | A (payment, auth)        | **Accepted**                     |
-| 4   | Rename `auction.created` to `auction.published`      | A (auction), B (bidding) | Accepted by A, **waiting for B** |
+| #   | Proposal                                             | Owner affected                   | Status                                   |
+| --- | ---------------------------------------------------- | -------------------------------- | ---------------------------------------- |
+| 1   | Public SSE stream                                    | Anesa (bidding), Erona (gateway) | Accepted by Erona, **waiting for Anesa** |
+| 2   | Cancel goes through bidding-service                  | Erona (auction), Anesa (bidding) | Accepted by Erona, **waiting for Anesa** |
+| 3   | payment-service creates wallets on `user.registered` | Erona (payment, auth)            | **Accepted**                             |
+| 4   | Rename `auction.created` to `auction.published`      | Erona (auction), Anesa (bidding) | Accepted by Erona, **waiting for Anesa** |
 
 ## 1. Public SSE stream
 

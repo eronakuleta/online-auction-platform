@@ -1,20 +1,20 @@
 # CLAUDE.md: Online Auction Platform
 
-University group project (Web Services and Web APIs, deadline 08.01.2027), 2 students. A real-time auction platform built as **microservices**. Graded on working functionality, technical quality, documentation and the students' ability to **explain and modify the code live**. Read `ROADMAP.md` (design, rules, timeline) and `TASKS.md` (who does what) before starting work.
+University group project (Web Services and Web APIs, hard deadline Mon 16.11.2026, internal target Sat 14.11.2026), 2 students: **Erona** (tasks `A-xx`) and **Anesa** (tasks `B-xx`). A real-time auction platform built as **microservices**. Graded on working functionality, technical quality, documentation and the students' ability to **explain and modify the code live**. Read `ROADMAP.md` (design, rules, timeline) and `TASKS.md` (who does what) before starting work.
 
 ## How to work in this repo
 
-1. **At the start of a session, find out which member you are working for** (A or B) if it is not obvious. Open their unchecked tasks in `TASKS.md` for the current week.
+1. **At the start of a session, find out which member you are working for** (Erona or Anesa) if it is not obvious. Open their unchecked tasks in `TASKS.md` for the current sprint. **Never start a task whose Status is "Blocked"** or that waits on the other member's unfinished work; pick another ready task instead.
 2. Work on **one task ID at a time**. Branch: `feat/<task-id>-<slug>`, e.g. `feat/B-06-place-bid`.
 3. Implement, write tests, run lint and tests, then tick the checkbox in `TASKS.md`.
 4. Do **not** edit files owned by the other member without asking. If you need a change there, describe it and let the user raise it with their teammate.
 5. If a requirement is unclear, **ask**. Do not invent business rules that contradict `ROADMAP.md`.
-6. After finishing a task, give a short plain-language explanation of what was built and why. The students must defend it. Append 3 to 5 bullet points to `docs/defense-notes/<member>.md` ("how to explain this at the defense").
+6. After finishing a task, give a short plain-language explanation of what was built and why. The students must defend it. Append 3 to 5 bullet points to `docs/defense-notes/<member>.md` (`erona.md` or `anesa.md`) ("how to explain this at the defense").
 7. **Academic integrity:** append an entry to `docs/ai-usage.md` for each task (date, task ID, what AI generated, what the student reviewed or changed). Add the trailer `Assisted-by: Claude Code` to commits. Prefer simple, readable code over clever code.
 
 ## Ownership
 
-| Member A | Member B |
+| Erona (A-xx tasks) | Anesa (B-xx tasks) |
 |---|---|
 | `backend/services/auth-service`, `auction-service`, `payment-service` | `backend/services/bidding-service`, `notification-service` |
 | `backend/shared/auth` | `backend/shared/*` except `auth` |
@@ -34,7 +34,7 @@ Node.js LTS + TypeScript, Express, zod, PostgreSQL 16 (`pg`, parameterized queri
 
 ```
 backend/
-  shared/                  # logger, errors, event helpers (B); auth middleware (A)
+  shared/                  # logger, errors, event helpers (Anesa); auth middleware (Erona)
   services/
     auth-service/          # :3001
     auction-service/       # :3002
@@ -66,11 +66,11 @@ src/
   __tests__/
 ```
 
-## Commands (create these in Week 1 if missing)
+## Commands (create these in Sprint 1 if missing)
 
 ```
 docker compose up -d                  # infra + all services
-docker compose --profile monitoring up -d   # + Prometheus, Grafana
+docker compose --profile monitoring up -d   # + Prometheus (Grafana is stretch)
 npm run lint                          # whole repo
 npm test                              # all unit + integration tests
 npm test -w backend/services/<name>   # one service
@@ -163,5 +163,5 @@ k6 run tests/performance/<script>.js
 - Don't put SQL in controllers or business rules in routes.
 - Don't use floats for money, or `console.log`.
 - Don't tick a task as done if tests fail or the Definition of Done in `ROADMAP.md` is not met.
-- Don't add stretch features before milestone M3 (feature freeze, 20.12.2026).
+- Don't add stretch features before the feature freeze (milestone M2, Wed 11.11.2026). Watchlist, admin UI, MailHog email, Grafana dashboard and circuit breaker are stretch (see `ROADMAP.md` §2).
 - Don't claim a performance figure, test result or feature that was not actually run or built.
