@@ -5,12 +5,12 @@ Erona has accepted all four. Proposals 1, 2 and 4 change Anesa's services or the
 contract, so they become binding only when Anesa agrees. Anesa then records them in `docs/events.md`
 (B-01), and the roadmap is updated in the same PR.
 
-| #   | Proposal                                             | Owner affected                   | Status                                   |
-| --- | ---------------------------------------------------- | -------------------------------- | ---------------------------------------- |
-| 1   | Public SSE stream                                    | Anesa (bidding), Erona (gateway) | Accepted by Erona, **waiting for Anesa** |
-| 2   | Cancel goes through bidding-service                  | Erona (auction), Anesa (bidding) | Accepted by Erona, **waiting for Anesa** |
-| 3   | payment-service creates wallets on `user.registered` | Erona (payment, auth)            | **Accepted**                             |
-| 4   | Rename `auction.created` to `auction.published`      | Erona (auction), Anesa (bidding) | Accepted by Erona, **waiting for Anesa** |
+| #   | Proposal                                             | Owner affected                   | Status                              |
+| --- | ---------------------------------------------------- | -------------------------------- | ----------------------------------- |
+| 1   | Public SSE stream                                    | Anesa (bidding), Erona (gateway) | **Accepted** by Anesa on 02.11.2026 |
+| 2   | Cancel goes through bidding-service                  | Erona (auction), Anesa (bidding) | **Accepted** by Anesa on 02.11.2026 |
+| 3   | payment-service creates wallets on `user.registered` | Erona (payment, auth)            | **Accepted**                        |
+| 4   | Rename `auction.created` to `auction.published`      | Erona (auction), Anesa (bidding) | **Accepted** by Anesa on 02.11.2026 |
 
 ## 1. Public SSE stream
 

@@ -90,13 +90,13 @@ Only the `Due` column was re-dated for the new deadline. Wording, hours and depe
 | B-02 | `backend/shared`: pino logger with correlation IDs, error classes and Express error handler, publisher/consumer helpers (amqplib, ack/nack, retry). **Unblocks A-05, A-07, A-08, A-11, A-13, A-17, A-18** | 7 | Tue 03.11 | B-01 | [ ] |
 | B-03 | RabbitMQ topology script: topic exchange, per-service queues, DLQs, bindings. **Unblocks A-13** | 3 | Tue 03.11 | B-01 | [ ] |
 | B-04 | bidding-service: SQL schema (auction_state, bids, idempotency_keys), indexes, seed | 4 | Tue 03.11 | A-04 | [ ] |
-| B-05 | bidding-service: consume `auction.created/cancelled` to build the local auction snapshot (test with a publish script until A-13 lands) | 4 | Sun 08.11 | B-03, B-04 | [ ] |
-| B-06 | bidding-service: `POST /auctions/:id/bids` with transaction and `SELECT ... FOR UPDATE`; rules (increment, not own auction, time window, not already highest) | 12 | Sun 08.11 | B-04, A-05 | [ ] |
+| B-05 | bidding-service: consume `auction.published/cancelled` to build the local auction snapshot (test with a publish script until A-13 lands) | 4 | Sun 08.11 | B-03, B-04 | [ ] |
+| B-06 | bidding-service: `POST /auctions/:id/bids` with transaction and `SELECT ... FOR UPDATE`; rules (increment, not own auction, time window, not already highest); `POST /internal/auctions/:id/cancel` under the same row lock (`docs/events.md` section 8) | 12 | Sun 08.11 | B-04, A-05 | [ ] |
 | B-07 | bidding-service: anti-sniping extension with max-extensions cap (env-configurable) and `auction.extended` event | 4 | Sun 08.11 | B-06 | [ ] |
 | B-08 | bidding-service: `GET /auctions/:id/bids` (paginated), `GET /auctions/:id/state`, `GET /bids/me` | 5 | Wed 11.11 | B-06 | [ ] |
 | B-09 | bidding-service: Redis cache of highest bid (write-through after commit), cache-aside for state, TTL and invalidation | 5 | Wed 11.11 | B-06 | [ ] |
 | B-10 | bidding-service: Idempotency-Key handling and funds check against payment-service with timeout and retry (use a stub until A-17 lands, then switch to real) | 7 | Sun 08.11 | B-06, A-17 | [ ] |
-| B-11 | bidding-service: closing worker (`FOR UPDATE SKIP LOCKED`), winner and reserve-price logic, publishes `auction.closed` and `bid.placed`. **Unblocks A-18** | 8 | Sun 08.11 | B-06, B-07 | [ ] |
+| B-11 | bidding-service: closing worker (`FOR UPDATE SKIP LOCKED`), winner and reserve-price logic, publishes `auction.closed`. **Unblocks A-18** | 8 | Sun 08.11 | B-06, B-07 | [ ] |
 | B-12 | bidding-service: SSE `/auctions/:id/stream` with Redis pub/sub fan-out for 2 replicas, heartbeat. **Unblocks A-21** | 8 | Wed 11.11 | B-09, B-11 | [ ] |
 | B-13 | bidding-service tests: unit, integration, concurrency test (50 parallel bids give one consistent order and winner) | 8 | Fri 13.11 | B-06 to B-11 | [ ] |
 | B-14 | notification-service: schema and consumers (welcome, outbid, won, lost, sold, payment completed/failed) | 8 | Wed 11.11 | B-02, B-03 | [ ] |

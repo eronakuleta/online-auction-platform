@@ -149,7 +149,7 @@ Supporting containers: PostgreSQL 5432, Redis 6379, RabbitMQ 5672/15672, Prometh
 - Settlement (payment-service) runs in one DB transaction: debit winner, credit seller minus `PLATFORM_FEE_PERCENT` (default 5%), credit platform account, write ledger entries. It is idempotent per `auction_id`.
 - Insufficient funds produce `payment.failed`.
 
-**Seller rules:** edit only while `DRAFT`; cancel only before the first bid (admin can always cancel).
+**Seller rules:** edit only while `DRAFT`; cancel only before the first bid (admin can always cancel). For a published auction, bidding-service decides this under the same row lock as place-bid (`docs/events.md` section 8).
 
 ---
 
@@ -159,7 +159,7 @@ Supporting containers: PostgreSQL 5432, Redis 6379, RabbitMQ 5672/15672, Prometh
 |---|---|
 | auth | `POST /auth/register` · `POST /auth/login` · `POST /auth/refresh` · `POST /auth/logout` · `GET/PATCH /users/me` · `GET /users` (ADMIN) · `PATCH /users/:id/status` (ADMIN) · `PATCH /users/:id/roles` (ADMIN) |
 | auction | `GET /auctions` (q, category, status, price range, sort, page, size) · `GET /auctions/:id` · `POST /auctions` (SELLER) · `PATCH /auctions/:id` · `POST /auctions/:id/publish` · `POST /auctions/:id/cancel` · `DELETE /auctions/:id` (DRAFT) · `GET /categories` · `POST /categories` (ADMIN) · *stretch:* `GET/POST/DELETE /watchlist` |
-| bidding | `POST /auctions/:id/bids` · `GET /auctions/:id/bids` · `GET /auctions/:id/state` · `GET /auctions/:id/stream` (SSE) · `GET /bids/me` |
+| bidding | `POST /auctions/:id/bids` · `GET /auctions/:id/bids` · `GET /auctions/:id/state` · `GET /auctions/:id/stream` (SSE, public, read-only) · `GET /bids/me` · `POST /internal/auctions/:id/cancel` (blocked at the gateway) |
 | payment | `GET /wallet/me` · `POST /wallet/deposit` (simulated) · `GET /wallet/transactions` · `GET /payments` (ADMIN) · `GET /internal/funds-check` (blocked at the gateway) |
 | notification | `GET /notifications` · `GET /notifications/unread-count` · `PATCH /notifications/:id/read` · `POST /notifications/read-all` |
 
@@ -171,8 +171,8 @@ That is over 30 endpoints, well above the required 5. Gateway routing note: `/au
 
 | Routing key | Publisher | Consumers | Purpose |
 |---|---|---|---|
-| `user.registered` | auth | notification | Welcome notification |
-| `auction.created` | auction | bidding | Build local auction snapshot (start, end, price, increment, seller) |
+| `user.registered` | auth | payment, notification | Create the wallet; welcome notification |
+| `auction.published` | auction | bidding | Build local auction snapshot (start, end, price, increment, seller) |
 | `auction.cancelled` | auction | bidding, notification | Stop accepting bids |
 | `bid.placed` | bidding | notification | "You were outbid" |
 | `auction.extended` | bidding | auction | Update displayed `ends_at` |
@@ -180,7 +180,7 @@ That is over 30 endpoints, well above the required 5. Gateway routing note: `/au
 | `payment.completed` | payment | auction, notification | Mark SETTLED, notify both parties |
 | `payment.failed` | payment | auction, notification | Mark PAYMENT_FAILED, notify |
 
-Envelope: `{ eventId, type, version, occurredAt, payload }`. Consumers are idempotent. After 3 retries a message goes to a dead-letter queue.
+Envelope: `{ eventId, type, version, occurredAt, payload }`. Consumers are idempotent. After 3 retries a message goes to a dead-letter queue. Payload schemas and the retry policy are in `docs/events.md`.
 
 ---
 

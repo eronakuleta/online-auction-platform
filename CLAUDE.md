@@ -106,7 +106,7 @@ k6 run tests/performance/<script>.js
 - Frontend tests are optional (Vitest + Testing Library if time allows). `npm run lint` and `npm run build` must pass.
 
 **Events** (RabbitMQ topic exchange `auction.events`)
-- Routing keys: `user.registered`, `auction.created`, `auction.cancelled`, `bid.placed`, `auction.extended`, `auction.closed`, `payment.completed`, `payment.failed`.
+- Routing keys: `user.registered`, `auction.published`, `auction.cancelled`, `bid.placed`, `auction.extended`, `auction.closed`, `payment.completed`, `payment.failed`.
 - Envelope: `{ eventId, type, version, occurredAt, payload }`. Payload schemas live in `docs/events.md`. Change them only with the other member's agreement.
 - Consumers **must be idempotent** (unique constraint or processed-events table). Retry 3 times, then DLQ. Publish **after** the DB commit.
 
