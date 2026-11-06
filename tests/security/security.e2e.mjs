@@ -19,9 +19,13 @@ const FRONTEND = 'http://localhost:5173';
 const SEEDED_LIVE_ID = '10000000-0000-4000-8000-000000000001';
 const BIDDER2_ID = '00000000-0000-4000-8000-000000000004';
 
-/** Calls the API. A 429 from the gateway is waited out, so rate limits never make a test flaky. */
+/**
+ * Calls the API. A 429 from the gateway is waited out, so rate limits never make a test flaky.
+ * elapsedMs is the time of the last attempt only, so a wait for the rate limit never counts as slow.
+ */
 async function call(path, { method = 'GET', token, body, headers = {} } = {}) {
   for (let attempt = 0; ; attempt += 1) {
+    const started = Date.now();
     const response = await fetch(path.startsWith('http') ? path : `${API}${path}`, {
       method,
       headers: {
@@ -42,7 +46,12 @@ async function call(path, { method = 'GET', token, body, headers = {} } = {}) {
     } catch {
       json = undefined;
     }
-    return { status: response.status, headers: response.headers, body: json };
+    return {
+      status: response.status,
+      headers: response.headers,
+      body: json,
+      elapsedMs: Date.now() - started,
+    };
   }
 }
 
@@ -216,10 +225,9 @@ describe('SQL injection: payloads are data, never SQL', () => {
 
   for (const payload of payloads) {
     test(`payload ${JSON.stringify(payload)}`, async () => {
-      // Timed alone: other calls below may wait out a 429 from the gateway, which is not slowness.
-      const started = Date.now();
       const search = await call(`/auctions?q=${encodeURIComponent(payload)}`);
-      assert.ok(Date.now() - started < 2000, 'pg_sleep never ran');
+      // Only the answer time counts: a wait for the rate limit is not slowness.
+      assert.ok(search.elapsedMs < 2000, `pg_sleep never ran (${search.elapsedMs} ms)`);
       assert.equal(search.status, 200, 'search treats it as words');
 
       for (const query of [
