@@ -21,6 +21,11 @@ function AccountButtons() {
   }
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+      {hasRole('BIDDER', 'SELLER') && (
+        <Button color="inherit" component={RouterLink} to="/wallet">
+          Wallet
+        </Button>
+      )}
       {hasRole('SELLER') && (
         <Button color="inherit" component={RouterLink} to="/seller">
           My auctions

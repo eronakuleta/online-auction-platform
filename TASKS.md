@@ -72,7 +72,7 @@ Anesa's numbers include the proposed cuts to B-15, B-17, B-20 and B-25. Her othe
 | A-24 | OpenAPI 3 specs for auth, auction, payment plus Swagger UI | 4 | Sat 14.11 | A-15, A-19 | Waits for A-15, A-19 (→ B-11) | [ ] |
 | A-25 | Frontend: auth context with token refresh and role-based route guards, auth pages, catalog browse/search/filter, auction detail (read-only) | 5 | Wed 11.11 | A-07, A-12 | In review (session with single-flight refresh, RequireAuth guard, login/register/account, catalog with URL filters, auction detail; build passes; API calls replayed against a fresh stack) | [x] |
 | A-26 | Frontend: create/edit auction form, seller dashboard (dashboard is first on the cut list if late) | 4 | Fri 13.11 | A-25 | In review (GET /auctions/mine with 11 tests; create/edit form and dashboard with publish, cancel, delete; seller flow replayed against a fresh stack) | [x] |
-| A-27 | Frontend: wallet page. Admin pages moved to stretch (admin API stays) | 2 | Fri 13.11 | A-25, A-17 | Waits for A-25, A-17 | [ ] |
+| A-27 | Frontend: wallet page. Admin pages moved to stretch (admin API stays) | 2 | Fri 13.11 | A-25, A-17 | In review (balance, simulated deposit, paged history behind the BIDDER/SELLER guard; requests replayed against a fresh stack) | [x] |
 | A-28 | `tests/e2e`: full lifecycle through the gateway (register, create, bid, close, settle, notify) | 3 | Sat 14.11 | all services | Blocked: all of Anesa's service tasks (B-06 to B-15) | [ ] |
 | A-29 | Presentation: requirements, architecture, security, own services | 2 | Sat 14.11 | none | Ready (finalise last) | [ ] |
 | A-30 | Defense prep: rehearse demo, live-change drills, update `docs/contributions.md` | 3 | Sat 14.11 | none | Ready (do last) | [ ] |
