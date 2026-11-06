@@ -9,6 +9,7 @@ import { AuctionDetailPage } from './pages/catalog/AuctionDetailPage';
 import { CatalogPage } from './pages/catalog/CatalogPage';
 import { AuctionFormPage } from './pages/seller/AuctionFormPage';
 import { SellerDashboardPage } from './pages/seller/SellerDashboardPage';
+import { WalletPage } from './pages/wallet/WalletPage';
 
 // Route table. Public pages first; pages behind <RequireAuth> need a session, and
 // <RequireAuth roles={[...]}> also a role (seller pages A-26, wallet A-27 go there).
@@ -23,6 +24,10 @@ export function App() {
 
         <Route element={<RequireAuth />}>
           <Route path="account" element={<AccountPage />} />
+        </Route>
+
+        <Route element={<RequireAuth roles={['BIDDER', 'SELLER']} />}>
+          <Route path="wallet" element={<WalletPage />} />
         </Route>
 
         <Route element={<RequireAuth roles={['SELLER']} />}>
