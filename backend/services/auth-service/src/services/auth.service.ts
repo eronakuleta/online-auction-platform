@@ -19,6 +19,8 @@ import {
   findUserByEmail,
   findUserById,
   insertUserWithRole,
+  recordFailedLogin,
+  resetFailedLogins,
   updateDisplayName,
   type User,
 } from '../repositories/user.repository';
@@ -35,6 +37,8 @@ export interface AuthServiceDependencies {
   pool: Pool;
   signer: AccessTokenSigner;
   refreshTtlSeconds: number;
+  /** Per-account login throttling (task A-23). */
+  loginThrottle: { maxFailures: number; lockSeconds: number };
   publish: Publish;
   logger: Logger;
 }
@@ -46,7 +50,7 @@ const invalidRefreshToken = () =>
   new UnauthorizedError('Invalid refresh token', 'INVALID_REFRESH_TOKEN');
 
 export function createAuthService(deps: AuthServiceDependencies) {
-  const { pool, signer, refreshTtlSeconds, publish, logger } = deps;
+  const { pool, signer, refreshTtlSeconds, loginThrottle, publish, logger } = deps;
 
   /** Stores a new refresh token (only its hash) and returns the raw value once. */
   async function issueRefreshToken(db: Queryable, userId: string, familyId: string) {
@@ -91,13 +95,27 @@ export function createAuthService(deps: AuthServiceDependencies) {
       return user;
     },
 
+    /**
+     * Every failure gives the same 401, including a locked account with the right password, so an
+     * attacker cannot tell which emails exist or whether a lock happened. Wrong guesses during a
+     * lock are not counted, so the lock cannot be kept going forever.
+     */
     async login(input: { email: string; password: string }) {
       const user = await findUserByEmail(pool, input.email);
+      // Always the same slow work, also for an unknown email or a locked account (timing).
       const matches = await passwordMatches(user?.passwordHash, input.password);
+      if (user?.loginLocked) {
+        logger.warn({ userId: user.id }, 'login refused, account locked after failed attempts');
+        throw invalidCredentials();
+      }
       if (!user || !matches || user.status !== 'ACTIVE') {
+        if (user && !matches) {
+          await recordFailedLogin(pool, user.id, loginThrottle);
+        }
         logger.info('login rejected');
         throw invalidCredentials();
       }
+      await resetFailedLogins(pool, user.id);
       const { refreshToken } = await issueRefreshToken(pool, user.id, randomUUID());
       logger.info({ userId: user.id }, 'user logged in');
       return { user, tokens: tokenPair(user, refreshToken) };

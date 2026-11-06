@@ -40,6 +40,7 @@ async function main(): Promise<void> {
     pool,
     signer,
     refreshTtlSeconds: jwt.refreshTtlSeconds,
+    loginThrottle: config.loginThrottle,
     publish: bus.publish,
     logger,
   });

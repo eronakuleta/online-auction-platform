@@ -19,6 +19,8 @@ const envSchema = z.object({
   JWT_AUDIENCE: required,
   JWT_ACCESS_TTL_SECONDS: seconds,
   JWT_REFRESH_TTL_SECONDS: seconds,
+  LOGIN_MAX_FAILED_ATTEMPTS: z.coerce.number().int().min(1),
+  LOGIN_LOCK_SECONDS: seconds,
   RABBITMQ_URL: required,
   EVENTS_EXCHANGE: required,
 });
@@ -34,6 +36,7 @@ export interface Config {
     accessTtlSeconds: number;
     refreshTtlSeconds: number;
   };
+  loginThrottle: { maxFailures: number; lockSeconds: number };
   events: { rabbitmqUrl: string; exchange: string };
 }
 
@@ -60,6 +63,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       audience: values.JWT_AUDIENCE,
       accessTtlSeconds: values.JWT_ACCESS_TTL_SECONDS,
       refreshTtlSeconds: values.JWT_REFRESH_TTL_SECONDS,
+    },
+    loginThrottle: {
+      maxFailures: values.LOGIN_MAX_FAILED_ATTEMPTS,
+      lockSeconds: values.LOGIN_LOCK_SECONDS,
     },
     events: { rabbitmqUrl: values.RABBITMQ_URL, exchange: values.EVENTS_EXCHANGE },
   };

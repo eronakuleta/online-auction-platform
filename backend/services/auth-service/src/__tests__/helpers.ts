@@ -19,6 +19,7 @@ const SQL_DIR = join(__dirname, '../../../../../database/auth');
 
 export const ISSUER = 'auction-auth-service';
 export const AUDIENCE = 'auction-platform';
+export const LOGIN_THROTTLE = { maxFailures: 5, lockSeconds: 300 };
 
 export interface TestContext {
   app: Express;
@@ -75,7 +76,14 @@ export async function createTestContext(): Promise<TestContext> {
     return event;
   };
 
-  const authService = createAuthService({ pool, signer, refreshTtlSeconds: 3600, publish, logger });
+  const authService = createAuthService({
+    pool,
+    signer,
+    refreshTtlSeconds: 3600,
+    loginThrottle: LOGIN_THROTTLE,
+    publish,
+    logger,
+  });
   const userAdminService = createUserAdminService({ pool, logger });
 
   return {

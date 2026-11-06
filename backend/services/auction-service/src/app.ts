@@ -8,6 +8,7 @@ import {
   type Logger,
 } from '@auction/shared-common';
 import express, { type Express } from 'express';
+import helmet from 'helmet';
 import type { Pool } from 'pg';
 import { pingDatabase } from './repositories/database';
 import { createRoutes } from './routes';
@@ -27,6 +28,10 @@ export function createApp(deps: AppDependencies): Express {
   app.disable('x-powered-by');
 
   app.use(correlationMiddleware());
+  // Security headers on every answer (nosniff, no framing, no referrer, a strict CSP). No HSTS:
+  // TLS ends at the gateway, and on localhost it would force HTTPS on every other local project
+  // too (gateway/README.md, TLS limits).
+  app.use(helmet({ strictTransportSecurity: false }));
   app.use(requestLogger(logger));
   // Room for the longest description (5000) plus ten image URLs (2048 each).
   app.use(express.json({ limit: '64kb' }));
