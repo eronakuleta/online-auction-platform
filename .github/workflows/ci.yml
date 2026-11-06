@@ -128,6 +128,9 @@ jobs:
         run: |
           cp .env.example .env
           node backend/shared/auth/scripts/gen-keys.mjs
+          # gen-keys makes the private key readable by its owner only. On Linux the container runs
+          # as another user (node), so it could not read it. This key exists only for this run.
+          chmod 644 secrets/jwt_private.pem
 
       - name: Start the stack
         run: docker compose up -d --build --wait --wait-timeout 300
