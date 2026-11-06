@@ -21,6 +21,8 @@ export function createRoutes(
   router.post('/auctions', requireSeller, controller.create);
   // Public, like the catalog page. A logged-in seller also sees their own reserve prices.
   router.get('/auctions', optionalLogin, controller.list);
+  // Before /auctions/:id, so "mine" is never read as an auction ID.
+  router.get('/auctions/mine', requireSeller, controller.listMine);
   router.get('/auctions/:id', optionalLogin, controller.getById);
   router.patch('/auctions/:id', requireSeller, controller.update);
   router.post('/auctions/:id/publish', requireSeller, controller.publish);

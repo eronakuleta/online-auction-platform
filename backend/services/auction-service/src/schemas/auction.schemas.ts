@@ -25,6 +25,23 @@ const imageUrls = z
 
 export const auctionIdParamsSchema = z.strictObject({ id: z.uuid() });
 
+// GET /auctions/mine: the seller's own auctions, so every status is allowed, DRAFT included.
+export const listMyAuctionsQuerySchema = z.strictObject({
+  status: z
+    .enum([
+      'DRAFT',
+      'PUBLISHED',
+      'CANCELLED',
+      'CLOSED_SOLD',
+      'CLOSED_NO_SALE',
+      'SETTLED',
+      'PAYMENT_FAILED',
+    ])
+    .optional(),
+  page: z.coerce.number().int().min(1).max(1_000_000).default(1),
+  size: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 export const createAuctionBodySchema = z.strictObject({
   categoryId: z.uuid(),
   title,

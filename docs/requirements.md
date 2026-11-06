@@ -148,8 +148,10 @@ Priority uses MoSCoW: **M** = must (core MVP), **S** = should, **C** = could (st
   "Upcoming" and "live" are not stored. They are derived from `starts_at` and `ends_at` in API
   responses.
 
+- A seller lists their own auctions in every state, drafts included, for the seller dashboard
+  (`GET /auctions/mine`, optional `status`, paginated). The public catalog never shows drafts.
 - **Endpoints:** `POST /auctions`, `PATCH /auctions/:id`, `POST /auctions/:id/publish`,
-  `POST /auctions/:id/cancel`, `DELETE /auctions/:id`.
+  `POST /auctions/:id/cancel`, `DELETE /auctions/:id`, `GET /auctions/mine`.
 
 ### FR-05 Catalog search and categories
 

@@ -3,7 +3,7 @@ import { Link as RouterLink, Outlet, useNavigate } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
 
 function AccountButtons() {
-  const { status, user, logout } = useAuth();
+  const { status, user, logout, hasRole } = useAuth();
   const navigate = useNavigate();
 
   if (status === 'loading') return null;
@@ -21,6 +21,11 @@ function AccountButtons() {
   }
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+      {hasRole('SELLER') && (
+        <Button color="inherit" component={RouterLink} to="/seller">
+          My auctions
+        </Button>
+      )}
       <Button color="inherit" component={RouterLink} to="/account">
         {user.displayName}
       </Button>
