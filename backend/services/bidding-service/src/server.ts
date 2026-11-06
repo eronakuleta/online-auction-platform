@@ -19,13 +19,18 @@ async function main(): Promise<void> {
     issuer: config.jwt.issuer,
     audience: config.jwt.audience,
   });
-  // Publishes bid.placed. Consuming auction.published/cancelled comes with B-05.
+  // Publishes bid.placed and auction.extended. Consuming auction.published/cancelled comes with B-05.
   const bus = await connectEventBus({
     url: config.events.rabbitmqUrl,
     exchange: config.events.exchange,
     logger,
   });
-  const biddingService = createBiddingService({ pool, publish: bus.publish, logger });
+  const biddingService = createBiddingService({
+    pool,
+    publish: bus.publish,
+    logger,
+    antiSniping: config.antiSniping,
+  });
 
   const app = createApp({ pool, biddingService, verifyToken, logger });
   const server = app.listen(config.port, () => {

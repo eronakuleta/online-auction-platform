@@ -41,3 +41,11 @@ How to explain each of Anesa's tasks (`B-xx`) at the defense. Short, in our own 
 - **Each rule has its own error code.** `BID_TOO_LOW` (409, with the minimum in the message), `ALREADY_HIGHEST_BIDDER` (409), `AUCTION_NOT_STARTED`, `AUCTION_CLOSED`, `AUCTION_CANCELLED` (409), `OWN_AUCTION` (403), `AUCTION_NOT_FOUND` (404). The frontend switches on the code, not the text.
 - **Proving the lock matters.** A test holds the row lock from a second connection, sends a bid, cancels the auction, then releases the lock: the bid must answer `AUCTION_CANCELLED`. I removed `FOR UPDATE` on purpose and this test failed, so it really guards the lock.
 - **Cancel and bid can never both win.** The internal cancel call takes the same lock, so whichever comes second sees the other's result: a bid after a cancel gets `AUCTION_CANCELLED`, a seller's cancel after a bid gets `AUCTION_HAS_BIDS`.
+
+## B-07 Anti-sniping
+
+- **What sniping is.** A bidder waits until the last second so nobody has time to answer. With anti-sniping, a bid in the last `SNIPE_WINDOW_SECONDS` (30) pushes the end back by `SNIPE_EXTENSION_SECONDS` (30), so the others always get a chance to react.
+- **Why there is a cap.** Without `MAX_EXTENSIONS` (10) two bidders could keep an auction open forever. After 10 extensions a late bid is still accepted, but the end no longer moves.
+- **It happens inside the same locked transaction as the bid.** The decision uses the time read after the lock, so two late bids cannot both extend from the same old end time. `auction.extended` is published after the commit, so auction-service can show the new end in the catalog.
+- **A bug the database caught.** Postgres stores microseconds, a JavaScript `Date` only milliseconds. Writing `ends_at` back from JavaScript moved it slightly earlier, and the B-04 constraint `ends_at >= original_ends_at` refused it. The fix lets Postgres add the extension itself (`ends_at + make_interval(...)`).
+- **The rule is a pure function** (`applyAntiSniping`), so its edge cases are tested without a database: exactly at the 30 s edge, just outside, and at the cap.

@@ -17,6 +17,9 @@ const envSchema = z.object({
   JWT_AUDIENCE: required,
   RABBITMQ_URL: required,
   EVENTS_EXCHANGE: required.default('auction.events'),
+  SNIPE_WINDOW_SECONDS: z.coerce.number().int().min(0),
+  SNIPE_EXTENSION_SECONDS: z.coerce.number().int().positive(),
+  MAX_EXTENSIONS: z.coerce.number().int().min(0),
 });
 
 export interface Config {
@@ -25,6 +28,7 @@ export interface Config {
   /** Only the public key: bidding-service verifies tokens but can never create them. */
   jwt: { publicKeyPath: string; issuer: string; audience: string };
   events: { rabbitmqUrl: string; exchange: string };
+  antiSniping: { windowSeconds: number; extensionSeconds: number; maxExtensions: number };
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -49,5 +53,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       audience: values.JWT_AUDIENCE,
     },
     events: { rabbitmqUrl: values.RABBITMQ_URL, exchange: values.EVENTS_EXCHANGE },
+    antiSniping: {
+      windowSeconds: values.SNIPE_WINDOW_SECONDS,
+      extensionSeconds: values.SNIPE_EXTENSION_SECONDS,
+      maxExtensions: values.MAX_EXTENSIONS,
+    },
   };
 }

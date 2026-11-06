@@ -18,10 +18,18 @@ import {
   type Bid,
 } from '../repositories/bidding.repository';
 
+/** SNIPE_WINDOW_SECONDS, SNIPE_EXTENSION_SECONDS and MAX_EXTENSIONS from the environment. */
+export interface AntiSnipingRules {
+  windowSeconds: number;
+  extensionSeconds: number;
+  maxExtensions: number;
+}
+
 export interface BiddingDependencies {
   pool: Pool;
   publish: Publish;
   logger: Logger;
+  antiSniping: AntiSnipingRules;
 }
 
 export interface PlaceBidResult {
@@ -74,12 +82,35 @@ function assertBidAllowed(auction: AuctionState, bidderId: string, amountCents: 
   }
 }
 
+/**
+ * Anti-sniping (ROADMAP §4 rule 7): a bid that arrives within the window before the end pushes
+ * the end back by the extension, at most maxExtensions times. Without it, a bidder could wait for
+ * the last second so nobody has time to answer.
+ */
+export function applyAntiSniping(
+  auction: { endsAt: Date; extensionCount: number },
+  now: Date,
+  rules: AntiSnipingRules,
+): { endsAt: Date; extensionCount: number; extended: boolean } {
+  const remainingMs = auction.endsAt.getTime() - now.getTime();
+  const inWindow = remainingMs <= rules.windowSeconds * 1000;
+  if (!inWindow || auction.extensionCount >= rules.maxExtensions) {
+    return { endsAt: auction.endsAt, extensionCount: auction.extensionCount, extended: false };
+  }
+  return {
+    endsAt: new Date(auction.endsAt.getTime() + rules.extensionSeconds * 1000),
+    extensionCount: auction.extensionCount + 1,
+    extended: true,
+  };
+}
+
 export function createBiddingService(deps: BiddingDependencies): BiddingService {
-  const { pool, publish, logger } = deps;
+  const { pool, publish, logger, antiSniping } = deps;
 
   return {
     async placeBid(bidderId, auctionId, amountCents) {
       let previousHighestBidderId: string | null = null;
+      let extended = false;
 
       const result = await withTransaction(pool, async (tx) => {
         const auction = await lockAuctionState(tx, auctionId);
@@ -99,13 +130,22 @@ export function createBiddingService(deps: BiddingDependencies): BiddingService 
           sequence: auction.bidCount + 1,
           placedAt: now,
         });
-        const updated = await recordHighestBid(tx, auctionId, bid, now);
+        const timing = applyAntiSniping(
+          { endsAt: auction.endsAt!, extensionCount: auction.extensionCount },
+          now,
+          antiSniping,
+        );
+        extended = timing.extended;
+        const updated = await recordHighestBid(tx, auctionId, bid, {
+          extendBySeconds: timing.extended ? antiSniping.extensionSeconds : 0,
+          updatedAt: now,
+        });
         return { bid, auction: updated };
       });
 
       const { bid, auction } = result;
       logger.info(
-        { auctionId, bidId: bid.id, bidderId, amountCents, sequence: bid.sequence },
+        { auctionId, bidId: bid.id, bidderId, amountCents, sequence: bid.sequence, extended },
         'bid accepted',
       );
 
@@ -124,6 +164,18 @@ export function createBiddingService(deps: BiddingDependencies): BiddingService 
         });
       } catch (err) {
         logger.error({ err, auctionId, bidId: bid.id }, 'could not publish bid.placed');
+      }
+      // auction-service updates the endsAt it shows in the catalog (A-13).
+      if (extended) {
+        try {
+          await publish('auction.extended', {
+            auctionId,
+            endsAt: auction.endsAt!.toISOString(),
+            extensionCount: auction.extensionCount,
+          });
+        } catch (err) {
+          logger.error({ err, auctionId }, 'could not publish auction.extended');
+        }
       }
       return result;
     },

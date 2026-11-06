@@ -18,6 +18,9 @@ const SQL_DIR = join(__dirname, '../../../../../database/bidding');
 const ISSUER = 'auction-auth-service';
 const AUDIENCE = 'auction-platform';
 
+/** The .env.example defaults: a bid in the last 30 s adds 30 s, at most 10 times. */
+export const ANTI_SNIPING = { windowSeconds: 30, extensionSeconds: 30, maxExtensions: 10 };
+
 /** From database/auth/002_seed.sql and database/bidding/002_seed.sql. */
 export const SELLER_ID = '00000000-0000-4000-8000-000000000002';
 export const BIDDER1_ID = '00000000-0000-4000-8000-000000000003';
@@ -86,7 +89,7 @@ export async function createTestContext(): Promise<TestContext> {
   const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const logger = createLogger({ service: 'bidding-service-test', level: 'silent' });
   const verifyToken = createTokenVerifier({ publicKey, issuer: ISSUER, audience: AUDIENCE });
-  const biddingService = createBiddingService({ pool, publish, logger });
+  const biddingService = createBiddingService({ pool, publish, logger, antiSniping: ANTI_SNIPING });
 
   return {
     app: createApp({ pool, biddingService, verifyToken, logger }),

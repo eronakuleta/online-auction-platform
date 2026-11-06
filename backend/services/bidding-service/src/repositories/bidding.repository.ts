@@ -148,20 +148,36 @@ export async function insertBid(
   return toBid(result.rows[0]!);
 }
 
-/** Makes the new bid the highest one. Only call it while holding the row lock. */
+/**
+ * Makes the new bid the highest one and, for anti-sniping, moves the end later by extendBySeconds
+ * (0 = no extension). Postgres does the date arithmetic: it stores microseconds while a JS Date
+ * keeps milliseconds, so writing ends_at back from JS could move it slightly earlier.
+ * Only call it while holding the row lock.
+ */
 export async function recordHighestBid(
   tx: Queryable,
   auctionId: string,
   bid: Bid,
-  updatedAt: Date,
+  timing: { extendBySeconds: number; updatedAt: Date },
 ): Promise<AuctionState> {
   const result = await tx.query<AuctionStateRow>(
     `UPDATE auction_state
      SET highest_bid_id = $2, highest_bid_cents = $3, highest_bidder_id = $4,
-         bid_count = $5, version = version + 1, updated_at = $6
+         bid_count = $5,
+         ends_at = ends_at + make_interval(secs => $6),
+         extension_count = extension_count + CASE WHEN $6 > 0 THEN 1 ELSE 0 END,
+         version = version + 1, updated_at = $7
      WHERE auction_id = $1
      RETURNING ${STATE_COLUMNS}`,
-    [auctionId, bid.id, bid.amountCents, bid.bidderId, bid.sequence, updatedAt],
+    [
+      auctionId,
+      bid.id,
+      bid.amountCents,
+      bid.bidderId,
+      bid.sequence,
+      timing.extendBySeconds,
+      timing.updatedAt,
+    ],
   );
   return toAuctionState(result.rows[0]!);
 }
