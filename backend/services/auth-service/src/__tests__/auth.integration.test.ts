@@ -81,9 +81,29 @@ describe('POST /auth/register', () => {
     ['a password over 128 characters', { password: 'x'.repeat(129) }],
     ['a blank display name', { displayName: '   ' }],
     ['a display name over 100 characters', { displayName: 'x'.repeat(101) }],
+    // Was a 500: Postgres text cannot store NUL (found during A-07, fixed in A-09).
+    ['a NUL character in the display name', { displayName: 'Bad\u0000name' }],
+    ['a line break in the display name', { displayName: 'Two\nlines' }],
+    ['an escape code in the display name', { displayName: 'Red\u001b[31m' }],
   ])('answers 400 for %s', async (_case, override) => {
     const response = await request(ctx.app).post(REGISTER).send(newUser(override));
     expectError(response, 400, 'VALIDATION_ERROR');
+  });
+
+  it('accepts letters from any language and emoji in the display name', async () => {
+    const displayName = 'Ëronë Kulëta 竞拍 🎉';
+    const response = await request(ctx.app).post(REGISTER).send(newUser({ displayName }));
+
+    expect(response.status).toBe(201);
+    expect(response.body.displayName).toBe(displayName);
+  });
+
+  it('accepts exactly 100 characters, and 128 for the password', async () => {
+    const response = await request(ctx.app)
+      .post(REGISTER)
+      .send(newUser({ displayName: 'n'.repeat(100), password: 'p'.repeat(128) }));
+
+    expect(response.status).toBe(201);
   });
 
   it('answers 400 with the field name for a missing field', async () => {
@@ -494,6 +514,7 @@ describe('/users/me', () => {
     ['status', { status: 'ACTIVE' }],
     ['password', { password: 'new password value' }],
     ['a blank display name', { displayName: ' ' }],
+    ['a NUL character', { displayName: 'Bad\u0000name' }],
     ['an empty body', {}],
   ])('PATCH answers 400 for %s (Q2)', async (_case, body) => {
     const { tokens } = await registerAndLogin();
@@ -504,6 +525,20 @@ describe('/users/me', () => {
       .send(body);
 
     expectError(response, 400, 'VALIDATION_ERROR');
+  });
+
+  it('PATCH answers 404 if the user no longer exists, and creates nothing', async () => {
+    const { user, tokens } = await registerAndLogin();
+    await ctx.pool.query('DELETE FROM users WHERE email = $1', [user.email]);
+
+    const response = await request(ctx.app)
+      .patch(ME)
+      .set('Authorization', `Bearer ${tokens.accessToken}`)
+      .send({ displayName: 'Ghost' });
+
+    expectError(response, 404, 'NOT_FOUND');
+    const { rows } = await ctx.pool.query('SELECT 1 FROM users WHERE email = $1', [user.email]);
+    expect(rows).toHaveLength(0);
   });
 
   it('PATCH answers 401 without a token', async () => {
