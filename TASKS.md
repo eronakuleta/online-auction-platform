@@ -65,7 +65,7 @@ Anesa's numbers include the proposed cuts to B-15, B-17, B-20 and B-25. Her othe
 | A-17 | payment-service: wallet balance, simulated deposit, history, internal funds-check endpoint (blocked at gateway) | 5 | Sun 08.11 | A-05, A-16, B-02 *(implicit)* | Ready after A-05, A-16 (B-02 pushed) | [ ] |
 | A-18 | payment-service: settlement consumer on `auction.closed` (atomic debit, credit, fee; idempotent; publishes `payment.completed/failed`) | 8 | Wed 11.11 | A-17, B-02, B-11 | Blocked: B-11 (closing worker); B-02 pushed | [ ] |
 | A-19 | payment-service tests (duplicate event, insufficient funds, rounding of fee) | 4 | Fri 13.11 | A-18 | Waits for A-18 (→ B-11) | [ ] |
-| A-20 | Gateway: Nginx routing table, TLS (self-signed) with documented local limits, rate limiting, block `/internal` | 5 | Sun 08.11 | A-04 | Ready after A-04 | [ ] |
+| A-20 | Gateway: Nginx routing table, TLS (self-signed) with documented local limits, rate limiting, block `/internal` | 5 | Sun 08.11 | A-04 | In review (14 smoke tests on the real stack, also in CI; bidding load balancing and SSE are A-21) | [x] |
 | A-21 | Gateway: load-balance bidding replicas (SSE-safe: buffering off, long read timeout) | 3 | Fri 13.11 | A-20, B-12 | Blocked: B-12 | [ ] |
 | A-22 | CI: GitHub Actions (lint, build, tests with service containers, docker build) | 4 | Tue 03.11 | A-04 | In review (checks with Postgres, compose validation, schema/seed job, image build; each new service adds its image) | [x] |
 | A-23 | Security hardening: helmet, CORS allow-list, body limits, login throttling, secrets audit; security test suite (SQLi payloads, missing/expired/forged JWT, RBAC matrix) | 6 | Fri 13.11 | A-20, A-07, A-11, A-17 | Waits for A-20 and the services | [ ] |
