@@ -8,6 +8,7 @@ import { createEventHandlers } from './events/consumers';
 import { createPool } from './repositories/database';
 import { createAuctionEventService } from './services/auction-event.service';
 import { createAuctionService } from './services/auction.service';
+import { createCategoryService } from './services/category.service';
 
 const logger = createLogger({ service: 'auction-service' });
 
@@ -43,7 +44,8 @@ async function main(): Promise<void> {
   const auctionEvents = createAuctionEventService({ pool, logger });
   await bus.subscribe('auction-service', createEventHandlers(auctionEvents));
 
-  const app = createApp({ pool, auctionService, verifyToken, logger });
+  const categoryService = createCategoryService({ pool, logger });
+  const app = createApp({ pool, auctionService, categoryService, verifyToken, logger });
   const server = app.listen(config.port, () => {
     logger.info({ port: config.port }, 'auction-service listening');
   });

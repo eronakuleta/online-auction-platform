@@ -13,17 +13,19 @@ import type { Pool } from 'pg';
 import { pingDatabase } from './repositories/database';
 import { createRoutes } from './routes';
 import type { AuctionService } from './services/auction.service';
+import type { CategoryService } from './services/category.service';
 
 export interface AppDependencies {
   pool: Pool;
   auctionService: AuctionService;
+  categoryService: CategoryService;
   verifyToken: TokenVerifier;
   logger: Logger;
 }
 
 /** Builds the Express app without listening, so tests can call it directly. */
 export function createApp(deps: AppDependencies): Express {
-  const { pool, auctionService, verifyToken, logger } = deps;
+  const { pool, auctionService, categoryService, verifyToken, logger } = deps;
   const app = express();
   app.disable('x-powered-by');
 
@@ -47,7 +49,7 @@ export function createApp(deps: AppDependencies): Express {
     res.status(200).json({ status: 'ok' });
   });
 
-  app.use('/api/v1', createRoutes(auctionService, verifyToken));
+  app.use('/api/v1', createRoutes(auctionService, categoryService, verifyToken));
 
   app.use(notFoundHandler());
   app.use(createErrorHandler(logger));

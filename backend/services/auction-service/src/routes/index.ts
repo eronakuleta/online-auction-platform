@@ -1,11 +1,18 @@
 import { authenticate, requireRole, type TokenVerifier } from '@auction/shared-auth';
 import { Router } from 'express';
 import { createAuctionController } from '../controllers/auction.controller';
+import { createCategoryController } from '../controllers/category.controller';
 import { optionalAuthenticate } from '../middleware/optional-authenticate';
 import type { AuctionService } from '../services/auction.service';
+import type { CategoryService } from '../services/category.service';
 
-export function createRoutes(auctionService: AuctionService, verifyToken: TokenVerifier): Router {
+export function createRoutes(
+  auctionService: AuctionService,
+  categoryService: CategoryService,
+  verifyToken: TokenVerifier,
+): Router {
   const controller = createAuctionController(auctionService);
+  const categories = createCategoryController(categoryService);
   const requireLogin = authenticate(verifyToken);
   const requireSeller = [requireLogin, requireRole('SELLER')];
   const router = Router();
@@ -25,6 +32,11 @@ export function createRoutes(auctionService: AuctionService, verifyToken: TokenV
     controller.cancel,
   );
   router.delete('/auctions/:id', requireSeller, controller.remove);
+
+  // Public, for the catalog filter and the create form. Only an admin adds one (ROADMAP §3).
+  router.get('/categories', categories.list);
+  router.get('/categories/:id', categories.getById);
+  router.post('/categories', requireLogin, requireRole('ADMIN'), categories.create);
 
   return router;
 }

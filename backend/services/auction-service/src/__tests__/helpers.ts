@@ -23,6 +23,7 @@ import { createBiddingClient } from '../clients/bidding.client';
 import { createEventHandlers } from '../events/consumers';
 import { createAuctionEventService } from '../services/auction-event.service';
 import { createAuctionService } from '../services/auction.service';
+import { createCategoryService } from '../services/category.service';
 
 // The default is the Docker Compose Postgres from .env.example. CI sets its own service container.
 const ADMIN_URL =
@@ -150,7 +151,13 @@ export async function createTestContext(): Promise<TestContext> {
   const handlers = createEventHandlers(createAuctionEventService({ pool, logger }));
 
   return {
-    app: createApp({ pool, auctionService, verifyToken, logger }),
+    app: createApp({
+      pool,
+      auctionService,
+      categoryService: createCategoryService({ pool, logger }),
+      verifyToken,
+      logger,
+    }),
     pool,
     biddingCalls,
     answerNextCancel(answer) {
