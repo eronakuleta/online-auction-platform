@@ -20,6 +20,8 @@ const envSchema = z.object({
   SNIPE_WINDOW_SECONDS: z.coerce.number().int().min(0),
   SNIPE_EXTENSION_SECONDS: z.coerce.number().int().positive(),
   MAX_EXTENSIONS: z.coerce.number().int().min(0),
+  CLOSING_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
+  CLOSING_BATCH_SIZE: z.coerce.number().int().positive().default(50),
 });
 
 export interface Config {
@@ -29,6 +31,7 @@ export interface Config {
   jwt: { publicKeyPath: string; issuer: string; audience: string };
   events: { rabbitmqUrl: string; exchange: string };
   antiSniping: { windowSeconds: number; extensionSeconds: number; maxExtensions: number };
+  closing: { intervalMs: number; batchSize: number };
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -58,5 +61,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       extensionSeconds: values.SNIPE_EXTENSION_SECONDS,
       maxExtensions: values.MAX_EXTENSIONS,
     },
+    closing: { intervalMs: values.CLOSING_INTERVAL_MS, batchSize: values.CLOSING_BATCH_SIZE },
   };
 }

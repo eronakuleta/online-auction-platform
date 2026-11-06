@@ -196,3 +196,46 @@ export async function markCancelled(
     [auctionId, cancelledBy, cancelledAt],
   );
 }
+
+/**
+ * Locks up to `limit` open auctions whose end time has passed (B-11). SKIP LOCKED passes over rows
+ * that another transaction holds, so two replicas never close the same auction, and a closing
+ * worker never waits behind a bid in progress: it simply takes that auction on its next round.
+ * now() is the start of this transaction, which is the moment the worker looked (docs/events.md §10).
+ */
+export async function lockExpiredAuctions(tx: Queryable, limit: number): Promise<AuctionState[]> {
+  const result = await tx.query<AuctionStateRow>(
+    `SELECT ${STATE_COLUMNS} FROM auction_state
+     WHERE status = 'OPEN' AND ends_at <= now()
+     ORDER BY ends_at
+     LIMIT $1
+     FOR UPDATE SKIP LOCKED`,
+    [limit],
+  );
+  return result.rows.map(toAuctionState);
+}
+
+/** Everyone who bid on the auction, each once. */
+export async function listBidderIds(tx: Queryable, auctionId: string): Promise<string[]> {
+  const result = await tx.query<{ bidder_id: string }>(
+    'SELECT DISTINCT bidder_id FROM bids WHERE auction_id = $1 ORDER BY bidder_id',
+    [auctionId],
+  );
+  return result.rows.map((row) => row.bidder_id);
+}
+
+/** Stores the result. Only call it while holding the row lock. Returns the closing time. */
+export async function markClosed(
+  tx: Queryable,
+  auctionId: string,
+  status: 'CLOSED_SOLD' | 'CLOSED_NO_SALE',
+): Promise<Date> {
+  const result = await tx.query<{ closed_at: Date }>(
+    `UPDATE auction_state
+     SET status = $2, closed_at = now(), version = version + 1, updated_at = now()
+     WHERE auction_id = $1
+     RETURNING closed_at`,
+    [auctionId, status],
+  );
+  return result.rows[0]!.closed_at;
+}

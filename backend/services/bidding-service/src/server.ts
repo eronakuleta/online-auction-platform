@@ -2,9 +2,11 @@
 import { createTokenVerifier, loadPublicKey } from '@auction/shared-auth';
 import { connectEventBus, createLogger } from '@auction/shared-common';
 import { createApp } from './app';
+import { startClosingWorker } from './jobs/closing-worker';
 import { loadConfig } from './config';
 import { createPool } from './repositories/database';
 import { createBiddingService } from './services/bidding.service';
+import { createClosingService } from './services/closing.service';
 
 const logger = createLogger({ service: 'bidding-service' });
 
@@ -19,7 +21,7 @@ async function main(): Promise<void> {
     issuer: config.jwt.issuer,
     audience: config.jwt.audience,
   });
-  // Publishes bid.placed and auction.extended. Consuming auction.published/cancelled comes with B-05.
+  // Publishes bid.placed, auction.extended and auction.closed. Consuming auction.published/cancelled comes with B-05.
   const bus = await connectEventBus({
     url: config.events.rabbitmqUrl,
     exchange: config.events.exchange,
@@ -32,6 +34,18 @@ async function main(): Promise<void> {
     antiSniping: config.antiSniping,
   });
 
+  const closingWorker = startClosingWorker({
+    closingService: createClosingService({
+      pool,
+      publish: bus.publish,
+      logger,
+      batchSize: config.closing.batchSize,
+    }),
+    intervalMs: config.closing.intervalMs,
+    batchSize: config.closing.batchSize,
+    logger,
+  });
+
   const app = createApp({ pool, biddingService, verifyToken, logger });
   const server = app.listen(config.port, () => {
     logger.info({ port: config.port }, 'bidding-service listening');
@@ -40,8 +54,9 @@ async function main(): Promise<void> {
   const shutdown = (signal: string) => {
     logger.info({ signal }, 'shutting down');
     server.close(() => {
-      void bus
-        .close()
+      void closingWorker
+        .stop()
+        .then(() => bus.close())
         .then(() => pool.end())
         .then(() => process.exit(0));
     });

@@ -10,6 +10,7 @@ import jwt from 'jsonwebtoken';
 import { Client, Pool } from 'pg';
 import { createApp } from '../app';
 import { createBiddingService } from '../services/bidding.service';
+import { createClosingService, type ClosingService } from '../services/closing.service';
 
 // The default is the Docker Compose Postgres from .env.example. CI sets its own service container.
 const ADMIN_URL =
@@ -42,6 +43,10 @@ export interface TestContext {
   /** Makes the next publish fail, as if the broker were down. */
   failNextPublish(): void;
   tokenFor(userId: string, roles?: Role[]): string;
+  /** A closing service on the same database (batch size 50), as each replica would have. */
+  newClosingService(batchSize?: number): ClosingService;
+  /** Moves the auction's end time 1 s into the past, as if it had just ended. */
+  expireAuction(auctionId: string): Promise<void>;
   /** Adds an open auction to bidding_db; times are seconds relative to the database clock. */
   addAuction(options?: {
     startsInSeconds?: number;
@@ -97,6 +102,17 @@ export async function createTestContext(): Promise<TestContext> {
     published,
     failNextPublish() {
       publishFails = true;
+    },
+    newClosingService: (batchSize = 50) =>
+      createClosingService({ pool, publish, logger, batchSize }),
+    async expireAuction(auctionId) {
+      await pool.query(
+        `UPDATE auction_state
+         SET ends_at = now() - interval '1 second', original_ends_at = now() - interval '1 second',
+             extension_count = 0
+         WHERE auction_id = $1`,
+        [auctionId],
+      );
     },
     tokenFor: (userId, roles = ['BIDDER']) =>
       jwt.sign({ roles }, privateKey, {

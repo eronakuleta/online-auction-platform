@@ -49,3 +49,11 @@ How to explain each of Anesa's tasks (`B-xx`) at the defense. Short, in our own 
 - **It happens inside the same locked transaction as the bid.** The decision uses the time read after the lock, so two late bids cannot both extend from the same old end time. `auction.extended` is published after the commit, so auction-service can show the new end in the catalog.
 - **A bug the database caught.** Postgres stores microseconds, a JavaScript `Date` only milliseconds. Writing `ends_at` back from JavaScript moved it slightly earlier, and the B-04 constraint `ends_at >= original_ends_at` refused it. The fix lets Postgres add the extension itself (`ends_at + make_interval(...)`).
 - **The rule is a pure function** (`applyAntiSniping`), so its edge cases are tested without a database: exactly at the 30 s edge, just outside, and at the cap.
+
+## B-11 Closing worker
+
+- **What it does.** Every second it looks for open auctions whose end time has passed, decides the result, marks them `CLOSED_SOLD` or `CLOSED_NO_SALE`, and publishes `auction.closed` after the commit. Payment-service (Erona's A-18) settles a sold auction from that event.
+- **Why `FOR UPDATE SKIP LOCKED`.** Two bidding replicas each run a worker. `SKIP LOCKED` makes a worker pass over any auction another transaction holds instead of waiting, so the two never close the same auction. A test runs two workers on 30 ended auctions: each is closed exactly once.
+- **It cannot overlap a last-second bid.** place-bid and the worker lock the same row. If a bid holds the lock, the worker skips that auction for one round; the bid then sees `now >= ends_at` is not yet true or gets `AUCTION_CLOSED`, never a bid on a closed auction.
+- **Result rules.** No bids: `NO_SALE` with `NO_BIDS`. Highest bid below the reserve: `NO_SALE` with `RESERVE_NOT_MET`. Otherwise `SOLD` to the highest bidder; equal to the reserve counts as met. `losingBidderIds` lists everyone who bid and did not win, so notification-service can tell them.
+- **Failure handling.** If a round fails, its transaction rolls back and the next round tries again. If publishing fails after the commit, the auction stays closed and the event is lost; that is the known limitation without an outbox (`docs/events.md` §7).
