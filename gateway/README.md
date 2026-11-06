@@ -67,7 +67,8 @@ Per client IP, set in `.env`:
 
 The strict `auth` limit slows down password guessing. Load tests from one machine (B-19) will hit
 the `api` limit, so raise `GATEWAY_API_RATE` and `GATEWAY_API_BURST` for them and say so in the
-performance report. Per-account login throttling in auth-service is part of task A-23.
+performance report. auth-service also locks an account for 5 minutes after 5 failed logins
+(decision Q9), so guessing spread over many IP addresses is stopped too.
 
 ## TLS and its local limits
 
@@ -97,9 +98,20 @@ with HSTS.
 For Node, set `NODE_EXTRA_CA_CERTS=gateway/certs/cert.pem` (as the smoke test does). Never switch
 certificate checking off instead.
 
-**Frontend:** the Vite dev server runs on `http://localhost:5173`, a different origin from the
-gateway, so the browser needs CORS headers. Those come with task A-23 (CORS allow-list), which the
-frontend task A-25 needs as well.
+## CORS
+
+The frontend runs on another origin (`http://localhost:5173`), so the browser asks the gateway
+first whether it may read the answer. The gateway answers for every service (task A-23):
+
+- Allowed origins come from `CORS_ALLOWED_ORIGINS` in `.env`. `cors-origins.sh` turns the list
+  into an nginx map at start, and refuses anything that is not exactly `scheme://host[:port]`, so
+  `.env` cannot inject configuration.
+- A preflight (`OPTIONS`) is answered by the gateway with `204` and never reaches a service.
+- The CORS headers are on every answer, including the gateway's own errors (429, 503), so the
+  frontend can read why a request failed.
+- An origin that is not on the list gets no `Access-Control-Allow-Origin`, so the browser refuses.
+- No `Access-Control-Allow-Credentials`: tokens travel in the `Authorization` header, never in
+  cookies.
 
 ## Test
 

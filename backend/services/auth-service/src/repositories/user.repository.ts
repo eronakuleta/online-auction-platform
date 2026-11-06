@@ -10,6 +10,8 @@ export interface User {
   displayName: string;
   status: UserStatus;
   roles: Role[];
+  /** True while too many failed logins keep the account locked (task A-23). */
+  loginLocked: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,6 +23,7 @@ interface UserRow {
   display_name: string;
   status: UserStatus;
   roles: Role[];
+  login_locked: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -33,6 +36,7 @@ function toUser(row: UserRow): User {
     displayName: row.display_name,
     status: row.status,
     roles: row.roles,
+    loginLocked: row.login_locked,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -41,6 +45,7 @@ function toUser(row: UserRow): User {
 // array_agg gives text[]; pg returns it as a string array, in a stable order.
 const SELECT_USER = `
   SELECT u.id, u.email, u.password_hash, u.display_name, u.status, u.created_at, u.updated_at,
+         COALESCE(u.locked_until > now(), false) AS login_locked,
          COALESCE(array_agg(r.role ORDER BY r.role) FILTER (WHERE r.role IS NOT NULL), '{}') AS roles
   FROM users u
   LEFT JOIN user_roles r ON r.user_id = u.id`;
@@ -137,4 +142,32 @@ export async function replaceUserRoles(db: Queryable, id: string, roles: Role[])
     [id, roles],
   );
   await db.query('UPDATE users SET updated_at = now() WHERE id = $1', [id]);
+}
+
+/**
+ * Counts one failed login in a single statement, so parallel attempts are all counted (the UPDATE
+ * locks the row). On reaching the limit the account is locked and the count starts again.
+ */
+export async function recordFailedLogin(
+  db: Queryable,
+  id: string,
+  rule: { maxFailures: number; lockSeconds: number },
+): Promise<void> {
+  await db.query(
+    `UPDATE users
+     SET failed_login_count =
+           CASE WHEN failed_login_count + 1 >= $2 THEN 0 ELSE failed_login_count + 1 END,
+         locked_until =
+           CASE WHEN failed_login_count + 1 >= $2
+                THEN now() + make_interval(secs => $3) ELSE locked_until END
+     WHERE id = $1`,
+    [id, rule.maxFailures, rule.lockSeconds],
+  );
+}
+
+export async function resetFailedLogins(db: Queryable, id: string): Promise<void> {
+  await db.query(
+    'UPDATE users SET failed_login_count = 0 WHERE id = $1 AND failed_login_count <> 0',
+    [id],
+  );
 }

@@ -90,6 +90,8 @@ services:
       JWT_REFRESH_TTL_SECONDS: ${JWT_REFRESH_TTL_SECONDS:-604800}
       RABBITMQ_URL: ${RABBITMQ_URL:?set RABBITMQ_URL in .env}
       EVENTS_EXCHANGE: ${EVENTS_EXCHANGE:-auction.events}
+      LOGIN_MAX_FAILED_ATTEMPTS: ${LOGIN_MAX_FAILED_ATTEMPTS:-5}
+      LOGIN_LOCK_SECONDS: ${LOGIN_LOCK_SECONDS:-300}
     volumes:
       # auth-service is the only service that gets the private key.
       - ./secrets/jwt_private.pem:/run/secrets/jwt_private.pem:ro
@@ -158,6 +160,7 @@ services:
       GATEWAY_API_BURST: ${GATEWAY_API_BURST:-40}
       GATEWAY_AUTH_RATE: ${GATEWAY_AUTH_RATE:-10r/m}
       GATEWAY_AUTH_BURST: ${GATEWAY_AUTH_BURST:-5}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
     volumes:
       # The self-signed certificate is created here on first start (gitignored).
       - ./gateway/certs:/etc/nginx/certs

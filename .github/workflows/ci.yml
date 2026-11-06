@@ -141,6 +141,11 @@ jobs:
           NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
         run: node --test tests/e2e/gateway-smoke.mjs
 
+      - name: Security test suite
+        env:
+          NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
+        run: node --test tests/security/security.e2e.mjs
+
       - name: Show logs on failure
         if: failure()
         run: docker compose logs --no-color --tail 100

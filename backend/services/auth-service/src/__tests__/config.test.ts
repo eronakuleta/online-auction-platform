@@ -13,6 +13,8 @@ const validEnv = {
   JWT_AUDIENCE: 'auction-platform',
   JWT_ACCESS_TTL_SECONDS: '900',
   JWT_REFRESH_TTL_SECONDS: '604800',
+  LOGIN_MAX_FAILED_ATTEMPTS: '5',
+  LOGIN_LOCK_SECONDS: '300',
   RABBITMQ_URL: 'amqp://auction:secret-value@rabbitmq:5672',
   EVENTS_EXCHANGE: 'auction.events',
 };
