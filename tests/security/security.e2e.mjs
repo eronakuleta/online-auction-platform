@@ -170,6 +170,10 @@ describe('RBAC matrix: role checks in routes, ownership in services', () => {
     ['GET', '/users', undefined, [401, 403, 403, 200]],
     ['PATCH', `/users/${BIDDER2_ID}/roles`, { roles: ['BIDDER'] }, [401, 403, 403, 200]],
     ['PATCH', `/users/${unknownId}/status`, { status: 'BANNED' }, [401, 403, 403, 404]],
+    // Wallets belong to bidders and sellers (decision Q13); an admin-only account has none.
+    ['GET', '/wallet/me', undefined, [401, 200, 200, 403]],
+    ['GET', '/wallet/transactions', undefined, [401, 200, 200, 403]],
+    ['POST', '/wallet/deposit', { amountCents: 0 }, [401, 400, 400, 403]],
   ];
   const roles = ['visitor', 'bidder', 'seller', 'admin'];
 
@@ -259,7 +263,7 @@ describe('SQL injection: payloads are data, never SQL', () => {
 
 describe('CORS', () => {
   test('the frontend origin may read answers, including errors', async () => {
-    for (const path of ['/auctions', '/users/me']) {
+    for (const path of ['/auctions', '/users/me', '/wallet/me']) {
       const response = await call(path, { headers: { Origin: FRONTEND } });
       assert.equal(response.headers.get('access-control-allow-origin'), FRONTEND, path);
       assert.match(response.headers.get('vary') ?? '', /Origin/);
@@ -290,7 +294,7 @@ describe('CORS', () => {
 });
 
 describe('security headers (helmet in each service)', () => {
-  test('are on answers from both services, through the gateway', async () => {
+  test('are on answers from every service, through the gateway', async () => {
     for (const path of ['/auctions', '/users/me']) {
       const { headers } = await call(path);
       assert.equal(headers.get('x-content-type-options'), 'nosniff', path);
@@ -303,9 +307,9 @@ describe('security headers (helmet in each service)', () => {
   });
 
   test('a 500-class error never leaks a stack trace', async () => {
-    // payment-service does not exist yet (A-17), so the gateway answers 503 here. bidding-service
-    // now exists (B-06), so a bids path no longer gives a 500-class answer.
-    const response = await call('/wallet/me');
+    // notification-service does not exist yet (B-14), so the gateway answers 503 here. bidding
+    // (B-06) and payment (A-17) now exist, so their paths no longer give a 500-class answer.
+    const response = await call('/notifications');
     assert.equal(response.status, 503);
     assert.doesNotMatch(JSON.stringify(response.body), /at .*\(|node_modules|stack/i);
   });
