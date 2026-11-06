@@ -67,9 +67,39 @@ function toQueryString(query: AuctionQuery): string {
   return text ? `?${text}` : '';
 }
 
+/** What a seller sends to create an auction, or any part of it to edit a draft. */
+export interface AuctionInput {
+  categoryId: string;
+  title: string;
+  description: string;
+  startingPriceCents: number;
+  minIncrementCents: number;
+  reservePriceCents: number | null;
+  /** ISO-8601 with a time zone. */
+  startsAt: string;
+  endsAt: string;
+  imageUrls: string[];
+}
+
+const auctionPath = (id: string) => `/auctions/${encodeURIComponent(id)}`;
+
 export const auctionsApi = {
   list: (query: AuctionQuery, signal?: AbortSignal) =>
     apiClient.get<Page<Auction>>(`/auctions${toQueryString(query)}`, { signal }),
+  /** The seller's own auctions in every state, drafts included. */
+  listMine: (
+    query: { status?: AuctionStatus; page?: number; size?: number },
+    signal?: AbortSignal,
+  ) =>
+    apiClient.get<Page<Auction>>(`/auctions/mine${toQueryString(query as AuctionQuery)}`, {
+      signal,
+    }),
+  create: (input: AuctionInput) => apiClient.post<Auction>('/auctions', input),
+  update: (id: string, changes: Partial<AuctionInput>) =>
+    apiClient.patch<Auction>(auctionPath(id), changes),
+  publish: (id: string) => apiClient.post<Auction>(`${auctionPath(id)}/publish`),
+  cancel: (id: string) => apiClient.post<Auction>(`${auctionPath(id)}/cancel`),
+  remove: (id: string) => apiClient.delete<undefined>(auctionPath(id)),
   get: (id: string, signal?: AbortSignal) =>
     apiClient.get<Auction>(`/auctions/${encodeURIComponent(id)}`, { signal }),
   categories: (signal?: AbortSignal) => apiClient.get<Page<Category>>('/categories', { signal }),
