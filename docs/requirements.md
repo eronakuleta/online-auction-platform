@@ -225,6 +225,12 @@ row lock on the auction:
   the gateway.
 - **Endpoints:** `GET /wallet/me`, `POST /wallet/deposit`, `GET /wallet/transactions`,
   `GET /internal/funds-check`.
+- Wallets belong to `BIDDER` and `SELLER` accounts; an admin-only account gets `403` (Q13). A user
+  only ever reaches their own wallet, because the user ID comes from the token.
+- `user.registered` creates an empty wallet. If that event was lost, the wallet endpoints create it
+  on first use, so nobody is left without one (Q11). One deposit is 1 cent to 10,000.00 (Q12).
+- Every balance change writes a ledger row with the balance after it, so balance always equals the
+  sum of the ledger.
 
 ### FR-12 Automatic settlement
 
@@ -453,6 +459,10 @@ them starts, and this document is updated.
 | Q7  | Can a draft be published after its end time has passed?                      | **Decided 05.11.2026:** no, `409 AUCTION_ALREADY_ENDED`, because bidding could never accept a bid. A start time in the past is allowed: the auction is live at once                                                                                                                                                                                                        | Erona                 | A-11       |
 | Q8  | Who can see the reserve price?                                               | **Decided 05.11.2026:** only the seller and admins. Showing it would let bidders bid exactly up to it                                                                                                                                                                                                                                                                      | Erona                 | A-11       |
 | Q9  | How are repeated failed logins on one account limited?                       | **Decided 06.11.2026:** after 5 failed logins in a row the account is locked for 5 minutes (`LOGIN_MAX_FAILED_ATTEMPTS`, `LOGIN_LOCK_SECONDS`). During the lock every attempt, even with the right password, gets the same generic `401 INVALID_CREDENTIALS`. The counter is updated atomically, a successful login resets it, and failures during a lock do not extend it | Erona                 | A-23       |
+| Q10 | What does the internal funds check accept and answer?                        | **Decided 06.11.2026, Anesa to confirm for B-10:** `GET /internal/funds-check?userId=<uuid>&amountCents=<int>` answers `200 { userId, amountCents, balanceCents, sufficient }`, `404 WALLET_NOT_FOUND` if the user has no wallet, `400 VALIDATION_ERROR` for bad input. It only reads; bidding turns `sufficient: false` into its own `409`                                | Erona and Anesa       | A-17, B-10 |
+| Q11 | How does a user get a wallet?                                                | **Decided 06.11.2026:** `user.registered` creates an empty one (idempotent through `UNIQUE (user_id)`). If the event was lost, `GET /wallet/me`, deposit and history create it on first use. The funds check never creates one                                                                                                                                             | Erona                 | A-17       |
+| Q12 | How much can one simulated deposit be?                                       | **Decided 06.11.2026:** 1 cent to 10,000.00 (`amountCents` 1 to 1,000,000); anything else is `400`                                                                                                                                                                                                                                                                         | Erona                 | A-17       |
+| Q13 | Who may use the wallet endpoints?                                            | **Decided 06.11.2026:** `BIDDER` or `SELLER`. An admin-only account gets `403`; admins see money through `GET /payments` (A-18)                                                                                                                                                                                                                                            | Erona                 | A-17       |
 
 - Design proposals 1 to 4 in `docs/design-proposals.md` are accepted (Anesa, 02.11.2026) and
   recorded in `docs/events.md`. The SSE part of Q3 is answered by proposal 1; bid history and live
