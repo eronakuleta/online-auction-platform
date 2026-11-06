@@ -303,7 +303,9 @@ describe('security headers (helmet in each service)', () => {
   });
 
   test('a 500-class error never leaks a stack trace', async () => {
-    const response = await call(`/auctions/${SEEDED_LIVE_ID}/bids`);
+    // payment-service does not exist yet (A-17), so the gateway answers 503 here. bidding-service
+    // now exists (B-06), so a bids path no longer gives a 500-class answer.
+    const response = await call('/wallet/me');
     assert.equal(response.status, 503);
     assert.doesNotMatch(JSON.stringify(response.body), /at .*\(|node_modules|stack/i);
   });
