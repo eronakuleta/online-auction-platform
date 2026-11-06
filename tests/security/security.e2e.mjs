@@ -170,6 +170,9 @@ describe('RBAC matrix: role checks in routes, ownership in services', () => {
     ['GET', '/users', undefined, [401, 403, 403, 200]],
     ['PATCH', `/users/${BIDDER2_ID}/roles`, { roles: ['BIDDER'] }, [401, 403, 403, 200]],
     ['PATCH', `/users/${unknownId}/status`, { status: 'BANNED' }, [401, 403, 403, 404]],
+    ['GET', '/categories', undefined, [200, 200, 200, 200]],
+    // A 1-character name is invalid, so the admin's allowed request creates nothing (400, not 201).
+    ['POST', '/categories', { name: 'x' }, [401, 403, 403, 400]],
     // Wallets belong to bidders and sellers (decision Q13); an admin-only account has none.
     ['GET', '/wallet/me', undefined, [401, 200, 200, 403]],
     ['GET', '/wallet/transactions', undefined, [401, 200, 200, 403]],
