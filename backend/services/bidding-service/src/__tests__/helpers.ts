@@ -128,6 +128,10 @@ export async function createTestContext(): Promise<TestContext> {
       return auctionId;
     },
     async close() {
+      // pool.end() can resolve while some connections are still closing, especially after a
+      // test that opened many at once. DROP DATABASE ... WITH (FORCE) then terminates them
+      // (57P01), and without a listener the pool would report that as an unhandled error.
+      pool.on('error', () => {});
       await pool.end();
       await withAdminClient((client) => client.query(`DROP DATABASE ${database} WITH (FORCE)`));
     },
