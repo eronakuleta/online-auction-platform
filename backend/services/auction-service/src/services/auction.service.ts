@@ -4,7 +4,10 @@ import {
   ForbiddenError,
   NotFoundError,
   ValidationError,
+  type EventPayload,
+  type EventType,
   type Logger,
+  type Publish,
 } from '@auction/shared-common';
 import type { Pool } from 'pg';
 import type { BiddingClient } from '../clients/bidding.client';
@@ -31,6 +34,8 @@ export interface AuctionServiceDependencies {
   bidding: BiddingClient;
   /** The platform has one currency, so sellers do not choose it. */
   currency: string;
+  /** Publishes an event. Called only after the transaction has committed. */
+  publish: Publish;
   logger: Logger;
 }
 
@@ -103,7 +108,20 @@ async function reload(db: Queryable, id: string): Promise<Auction> {
 }
 
 export function createAuctionService(deps: AuctionServiceDependencies) {
-  const { pool, bidding, currency, logger } = deps;
+  const { pool, bidding, currency, publish, logger } = deps;
+
+  /**
+   * After the commit, as the contract requires (docs/events.md §1). The change is already saved, so
+   * a broker failure must not turn the request into an error. An event lost this way is the known
+   * limitation without an outbox (docs/events.md §7), so it is logged as an error to be noticed.
+   */
+  async function announce<T extends EventType>(type: T, payload: EventPayload<T>): Promise<void> {
+    try {
+      await publish(type, payload);
+    } catch (err) {
+      logger.error({ err, eventType: type }, 'could not publish event');
+    }
+  }
 
   return {
     async create(seller: AuthUser, input: NewAuction): Promise<Auction> {
@@ -168,7 +186,7 @@ export function createAuctionService(deps: AuctionServiceDependencies) {
       });
     },
 
-    /** DRAFT to PUBLISHED. Telling bidding-service through auction.published is task A-13. */
+    /** DRAFT to PUBLISHED. auction.published gives bidding-service what it needs to take bids. */
     async publish(user: AuthUser, id: string): Promise<Auction> {
       const auction = await withTransaction(pool, async (transaction) => {
         const current = requireSeller(await findAuctionForUpdate(transaction, id), user);
@@ -180,6 +198,17 @@ export function createAuctionService(deps: AuctionServiceDependencies) {
         return reload(transaction, id);
       });
       logger.info({ auctionId: id, sellerId: user.id }, 'auction published');
+      await announce('auction.published', {
+        auctionId: auction.id,
+        sellerId: auction.sellerId,
+        title: auction.title,
+        startsAt: auction.startsAt.toISOString(),
+        endsAt: auction.endsAt.toISOString(),
+        startingPriceCents: auction.startingPriceCents,
+        minIncrementCents: auction.minIncrementCents,
+        reservePriceCents: auction.reservePriceCents,
+        currency: auction.currency,
+      });
       return auction;
     },
 
@@ -187,7 +216,8 @@ export function createAuctionService(deps: AuctionServiceDependencies) {
      * The seller can cancel before the first bid; an admin can cancel any auction that has not
      * closed. "Before the first bid" spans two databases, so bidding-service decides it for a
      * published auction (docs/events.md §8). That call happens before the transaction, so no row
-     * lock is held during a network call. Telling others through auction.cancelled is task A-13.
+     * lock is held during a network call. auction.cancelled is published only for an auction
+     * that was published: nobody else ever saw a draft, so there is nobody to tell.
      */
     async cancel(user: AuthUser, id: string): Promise<Auction> {
       const before = requireVisible(await findAuctionById(pool, id), user);
@@ -219,6 +249,14 @@ export function createAuctionService(deps: AuctionServiceDependencies) {
         return reload(transaction, id);
       });
       logger.info({ auctionId: id, cancelledBy: user.id }, 'auction cancelled');
+      if (before.status === 'PUBLISHED') {
+        await announce('auction.cancelled', {
+          auctionId: auction.id,
+          sellerId: auction.sellerId,
+          title: auction.title,
+          cancelledBy: user.id,
+        });
+      }
       return auction;
     },
 
