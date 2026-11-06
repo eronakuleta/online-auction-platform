@@ -13,6 +13,8 @@ const validEnv = {
   CURRENCY: 'EUR',
   BIDDING_SERVICE_URL: 'http://bidding-service:3003',
   BIDDING_CANCEL_TIMEOUT_MS: '2000',
+  RABBITMQ_URL: 'amqp://auction:secret-value@rabbitmq:5672',
+  EVENTS_EXCHANGE: 'auction.events',
 };
 
 describe('loadConfig', () => {
@@ -22,6 +24,17 @@ describe('loadConfig', () => {
     expect(config.port).toBe(3002);
     expect(config.database.database).toBe('auction_db');
     expect(config.bidding).toEqual({ url: 'http://bidding-service:3003', timeoutMs: 2000 });
+  });
+
+  it('reads the RabbitMQ settings, and never prints the URL with its password', () => {
+    expect(loadConfig(validEnv).events).toEqual({
+      rabbitmqUrl: 'amqp://auction:secret-value@rabbitmq:5672',
+      exchange: 'auction.events',
+    });
+
+    const call = () => loadConfig({ ...validEnv, RABBITMQ_URL: '', EVENTS_EXCHANGE: undefined });
+    expect(call).toThrow(/RABBITMQ_URL, EVENTS_EXCHANGE/);
+    expect(call).not.toThrow(/secret-value/);
   });
 
   it('fails fast and names every missing variable', () => {

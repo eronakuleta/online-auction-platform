@@ -123,6 +123,10 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      # Only for the events test, which talks to RabbitMQ through amqplib.
+      - name: Install dependencies
+        run: npm ci
+
       # Test values only: .env.example and keys made for this run, never real secrets.
       - name: Prepare .env and JWT keys
         run: |
@@ -145,6 +149,13 @@ jobs:
         env:
           NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
         run: node --test tests/security/security.e2e.mjs
+
+      # Publishes an auction and listens on the real broker, then sends auction.closed and
+      # payment.completed to auction-service's queue, as bidding and payment will (task A-13).
+      - name: Auction events test
+        env:
+          NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
+        run: node --test tests/e2e/auction-events.e2e.mjs
 
       - name: Show logs on failure
         if: failure()
