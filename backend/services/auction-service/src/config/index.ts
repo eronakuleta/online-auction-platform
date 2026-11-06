@@ -18,6 +18,8 @@ const envSchema = z.object({
   CURRENCY: z.string().regex(/^[A-Z]{3}$/),
   BIDDING_SERVICE_URL: z.url(),
   BIDDING_CANCEL_TIMEOUT_MS: z.coerce.number().int().positive(),
+  RABBITMQ_URL: required,
+  EVENTS_EXCHANGE: required,
 });
 
 export interface Config {
@@ -27,6 +29,8 @@ export interface Config {
   jwt: { publicKeyPath: string; issuer: string; audience: string };
   currency: string;
   bidding: { url: string; timeoutMs: number };
+  /** The URL contains the RabbitMQ password, so it is never logged. */
+  events: { rabbitmqUrl: string; exchange: string };
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -52,5 +56,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     },
     currency: values.CURRENCY,
     bidding: { url: values.BIDDING_SERVICE_URL, timeoutMs: values.BIDDING_CANCEL_TIMEOUT_MS },
+    events: { rabbitmqUrl: values.RABBITMQ_URL, exchange: values.EVENTS_EXCHANGE },
   };
 }

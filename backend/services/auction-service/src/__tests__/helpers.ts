@@ -1,17 +1,27 @@
 // Test setup: a real Postgres with a throwaway database per test file, built from the same SQL
-// files as production, and a real HTTP server standing in for bidding-service's internal endpoint.
+// files as production, a real HTTP server standing in for bidding-service's internal endpoint, and
+// a publisher that records events instead of sending them (the broker itself is covered by the
+// end-to-end test in tests/e2e/auction-events.e2e.mjs).
 import { generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { createTokenVerifier, type Role } from '@auction/shared-auth';
-import { createLogger } from '@auction/shared-common';
+import {
+  createEvent,
+  createLogger,
+  type DomainEvent,
+  type EventHandlers,
+  type Publish,
+} from '@auction/shared-common';
 import type { Express } from 'express';
 import jwt from 'jsonwebtoken';
 import { Client, Pool } from 'pg';
 import { createApp } from '../app';
 import { createBiddingClient } from '../clients/bidding.client';
+import { createEventHandlers } from '../events/consumers';
+import { createAuctionEventService } from '../services/auction-event.service';
 import { createAuctionService } from '../services/auction.service';
 
 // The default is the Docker Compose Postgres from .env.example. CI sets its own service container.
@@ -51,6 +61,14 @@ export interface TestContext {
   biddingCalls: BiddingCall[];
   /** Sets the fake bidding-service's next answers. The default is 204. */
   answerNextCancel(answer: BiddingAnswer): void;
+  /** Every event the service published, in order, already checked against the contract. */
+  published: DomainEvent[];
+  /** Makes publish() throw, as it does when the broker is down. */
+  failPublishing(fail: boolean): void;
+  /** Runs inside every publish() call, before it returns, to look at the database at that moment. */
+  onPublish(hook: ((event: DomainEvent) => Promise<void>) | undefined): void;
+  /** The real handlers the RabbitMQ consumer calls, so tests can deliver events directly. */
+  handlers: Required<EventHandlers<'auction-service'>>;
   tokenFor(roles: Role[], userId?: string): string;
   close(): Promise<void>;
 }
@@ -113,7 +131,23 @@ export async function createTestContext(): Promise<TestContext> {
     timeoutMs: 300,
     logger,
   });
-  const auctionService = createAuctionService({ pool, bidding, currency: 'EUR', logger });
+  const published: DomainEvent[] = [];
+  let publishFails = false;
+  let publishHook: ((event: DomainEvent) => Promise<void>) | undefined;
+  // createEvent validates the payload against the shared contract and throws if it breaks it, the
+  // same check the real publisher makes before sending.
+  const publish: Publish = async (type, payload) => {
+    if (publishFails) {
+      throw new Error('broker unavailable');
+    }
+    const event = createEvent(type, payload);
+    // TypeScript cannot narrow the generic DomainEvent<T> to the union; the value is the same.
+    published.push(event as DomainEvent);
+    await publishHook?.(event as DomainEvent);
+    return event;
+  };
+  const auctionService = createAuctionService({ pool, bidding, currency: 'EUR', publish, logger });
+  const handlers = createEventHandlers(createAuctionEventService({ pool, logger }));
 
   return {
     app: createApp({ pool, auctionService, verifyToken, logger }),
@@ -122,6 +156,14 @@ export async function createTestContext(): Promise<TestContext> {
     answerNextCancel(answer) {
       nextAnswer = answer;
     },
+    published,
+    failPublishing(fail) {
+      publishFails = fail;
+    },
+    onPublish(hook) {
+      publishHook = hook;
+    },
+    handlers,
     tokenFor: (roles, userId = randomUUID()) =>
       jwt.sign({ roles }, privateKey, {
         algorithm: 'RS256',
