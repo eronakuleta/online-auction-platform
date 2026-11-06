@@ -85,16 +85,27 @@ test('routes the catalog and auction details to auction-service', async () => {
 });
 
 test('routes bids, state and stream to bidding-service, not auction-service', async () => {
-  for (const part of ['bids', 'state', 'stream']) {
-    const response = await call(`/auctions/${SEEDED_LIVE_ID}/${part}`);
-    // bidding-service does not exist yet, so the gateway answers 503. auction-service would have
-    // answered its own 404 for this path.
-    assertGatewayError(response, 503, 'SERVICE_UNAVAILABLE');
+  // Only bidding-service has POST /auctions/:id/bids, so a 401 (not auction-service's 404) proves
+  // the regex location sends this path to bidding-service (B-06).
+  const bid = await call(`/auctions/${SEEDED_LIVE_ID}/bids`, {
+    method: 'POST',
+    body: JSON.stringify({ amountCents: 9000 }),
+  });
+  assertGatewayError(bid, 401, 'UNAUTHORIZED');
+  // The same location serves state and stream. bidding-service answers 404 for them, and for
+  // GET /bids and /bids/me, until B-08 and B-12 add those endpoints.
+  for (const path of [
+    `/auctions/${SEEDED_LIVE_ID}/bids`,
+    `/auctions/${SEEDED_LIVE_ID}/state`,
+    `/auctions/${SEEDED_LIVE_ID}/stream`,
+    '/bids/me',
+  ]) {
+    assertGatewayError(await call(path), 404, 'NOT_FOUND');
   }
 });
 
 test('routes payment and notification paths, which answer 503 until those services exist', async () => {
-  for (const path of ['/wallet/me', '/payments', '/notifications', '/bids/me']) {
+  for (const path of ['/wallet/me', '/payments', '/notifications']) {
     assertGatewayError(await call(path), 503, 'SERVICE_UNAVAILABLE');
   }
 });
