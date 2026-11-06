@@ -18,6 +18,7 @@ import {
   findAuctionForUpdate,
   insertAuction,
   listAuctions,
+  listSellerAuctions,
   markAuctionCancelled,
   markAuctionPublished,
   replaceAuctionImages,
@@ -146,6 +147,19 @@ export function createAuctionService(deps: AuctionServiceDependencies) {
         offset: (page - 1) * size,
       });
       return { auctions, page, size, total };
+    },
+
+    /** The seller dashboard: the caller's own auctions in every state, drafts included. */
+    async listMine(
+      seller: AuthUser,
+      query: { status?: Auction['status']; page: number; size: number },
+    ) {
+      const { auctions, total } = await listSellerAuctions(pool, seller.id, {
+        status: query.status,
+        limit: query.size,
+        offset: (query.page - 1) * query.size,
+      });
+      return { auctions, page: query.page, size: query.size, total };
     },
 
     async getById(id: string, viewer: AuthUser | undefined): Promise<Auction> {

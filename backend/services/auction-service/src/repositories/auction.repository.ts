@@ -336,3 +336,37 @@ export async function listAuctions(
   );
   return { auctions: rows.map(toAuction), total: Number(count.rows[0]?.total ?? 0) };
 }
+
+/**
+ * One seller's own auctions in every state, drafts included, newest first (the seller dashboard).
+ * Uses the auctions_seller_id_idx index. The id breaks ties, so paging never repeats a row.
+ */
+export async function listSellerAuctions(
+  db: Queryable,
+  sellerId: string,
+  filter: { status?: AuctionStatus; limit: number; offset: number },
+): Promise<{ auctions: Auction[]; total: number }> {
+  const filterValues: unknown[] = [sellerId];
+  let where = 'a.seller_id = $1';
+  if (filter.status !== undefined) {
+    filterValues.push(filter.status);
+    where += ' AND a.status = $2';
+  }
+  const limitParam = '$' + (filterValues.length + 1);
+  const offsetParam = '$' + (filterValues.length + 2);
+  const { rows } = await db.query<AuctionRow>(
+    SELECT_AUCTION +
+      ' WHERE ' +
+      where +
+      ' ORDER BY a.created_at DESC, a.id LIMIT ' +
+      limitParam +
+      ' OFFSET ' +
+      offsetParam,
+    [...filterValues, filter.limit, filter.offset],
+  );
+  const count = await db.query<{ total: string }>(
+    'SELECT count(*) AS total FROM auctions a WHERE ' + where,
+    filterValues,
+  );
+  return { auctions: rows.map(toAuction), total: Number(count.rows[0]?.total ?? 0) };
+}

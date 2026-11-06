@@ -170,6 +170,7 @@ describe('RBAC matrix: role checks in routes, ownership in services', () => {
     ['GET', '/users', undefined, [401, 403, 403, 200]],
     ['PATCH', `/users/${BIDDER2_ID}/roles`, { roles: ['BIDDER'] }, [401, 403, 403, 200]],
     ['PATCH', `/users/${unknownId}/status`, { status: 'BANNED' }, [401, 403, 403, 404]],
+    ['GET', '/auctions/mine', undefined, [401, 403, 200, 403]],
     ['GET', '/categories', undefined, [200, 200, 200, 200]],
     // A 1-character name is invalid, so the admin's allowed request creates nothing (400, not 201).
     ['POST', '/categories', { name: 'x' }, [401, 403, 403, 400]],
