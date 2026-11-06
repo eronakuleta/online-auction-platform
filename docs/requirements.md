@@ -90,6 +90,8 @@ Priority uses MoSCoW: **M** = must (core MVP), **S** = should, **C** = could (st
 - A visitor registers with email, password and display name. The email is unique. The password is
   stored with argon2id, never in plain text. The new user always gets only the `BIDDER` role.
   The registration body has no roles field; a request that sends one is rejected with `400` (decision Q1).
+- The display name is 1 to 100 characters after trimming, in any language, and contains no control
+  characters (such as NUL or line breaks); otherwise the answer is `400`.
 - A user logs in with email and password and receives a 15-minute RS256 access token and a refresh
   token.
 - The refresh token can be used once: each refresh returns a new pair and invalidates the old one
