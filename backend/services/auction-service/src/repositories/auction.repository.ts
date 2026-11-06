@@ -212,6 +212,46 @@ export async function markAuctionCancelled(db: Queryable, id: string): Promise<v
   ]);
 }
 
+/** Anti-sniping only ever moves the end later, so an old, retried event can never shorten it. */
+export async function extendAuctionEnd(db: Queryable, id: string, endsAt: Date): Promise<void> {
+  await db.query(
+    `UPDATE auctions SET ends_at = GREATEST(ends_at, $2), updated_at = now() WHERE id = $1`,
+    [id, endsAt],
+  );
+}
+
+export type ClosedResult =
+  | { status: 'CLOSED_SOLD'; winnerId: string; finalPriceCents: number; closedAt: Date }
+  | { status: 'CLOSED_NO_SALE'; closedAt: Date };
+
+export async function markAuctionClosed(
+  db: Queryable,
+  id: string,
+  result: ClosedResult,
+): Promise<void> {
+  const sold = result.status === 'CLOSED_SOLD';
+  await db.query(
+    `UPDATE auctions
+     SET status = $2, winner_id = $3, final_price_cents = $4, closed_at = $5, updated_at = now()
+     WHERE id = $1`,
+    [
+      id,
+      result.status,
+      sold ? result.winnerId : null,
+      sold ? result.finalPriceCents : null,
+      result.closedAt,
+    ],
+  );
+}
+
+export async function markAuctionPayment(
+  db: Queryable,
+  id: string,
+  status: 'SETTLED' | 'PAYMENT_FAILED',
+): Promise<void> {
+  await db.query(`UPDATE auctions SET status = $2, updated_at = now() WHERE id = $1`, [id, status]);
+}
+
 export async function deleteAuction(db: Queryable, id: string): Promise<void> {
   await db.query('DELETE FROM auctions WHERE id = $1', [id]);
 }

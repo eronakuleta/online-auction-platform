@@ -132,11 +132,15 @@ services:
       CURRENCY: ${CURRENCY:-EUR}
       BIDDING_SERVICE_URL: ${BIDDING_SERVICE_URL:-http://bidding-service:3003}
       BIDDING_CANCEL_TIMEOUT_MS: ${BIDDING_CANCEL_TIMEOUT_MS:-2000}
+      RABBITMQ_URL: ${RABBITMQ_URL:?set RABBITMQ_URL in .env}
+      EVENTS_EXCHANGE: ${EVENTS_EXCHANGE:-auction.events}
     volumes:
       # Only the public key: this service can verify tokens but never create them.
       - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test:
