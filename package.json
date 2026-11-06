@@ -27,7 +27,8 @@
     "rabbitmq:setup": "npm run build -w @auction/shared-common && node scripts/setup-rabbitmq.mjs",
     "test:gateway": "node --test tests/e2e/gateway-smoke.mjs",
     "test:security": "node --test tests/security/security.e2e.mjs",
-    "test:events": "node --test tests/e2e/auction-events.e2e.mjs"
+    "test:events": "node --test tests/e2e/auction-events.e2e.mjs",
+    "test:wallet": "node --test tests/e2e/wallet.e2e.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

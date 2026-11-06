@@ -78,6 +78,9 @@ jobs:
       - name: Build the bidding-service image
         run: docker build -f backend/services/bidding-service/Dockerfile .
 
+      - name: Build the payment-service image
+        run: docker build -f backend/services/payment-service/Dockerfile .
+
   database:
     name: Database schemas and seeds
     runs-on: ubuntu-latest
@@ -126,7 +129,7 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # Only for the events test, which talks to RabbitMQ through amqplib.
+      # For the events and wallet tests, which use amqplib and pg.
       - name: Install dependencies
         run: npm ci
 
@@ -159,6 +162,13 @@ jobs:
         env:
           NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
         run: node --test tests/e2e/auction-events.e2e.mjs
+
+      # Registers a user and follows user.registered into payment_db, deposits through the gateway,
+      # and calls the internal funds check from inside the Docker network (task A-17).
+      - name: Wallet test
+        env:
+          NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
+        run: node --test tests/e2e/wallet.e2e.mjs
 
       - name: Show logs on failure
         if: failure()
