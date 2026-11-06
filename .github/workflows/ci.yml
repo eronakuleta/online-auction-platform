@@ -75,6 +75,9 @@ jobs:
       - name: Build the auction-service image
         run: docker build -f backend/services/auction-service/Dockerfile .
 
+      - name: Build the bidding-service image
+        run: docker build -f backend/services/bidding-service/Dockerfile .
+
       - name: Build the payment-service image
         run: docker build -f backend/services/payment-service/Dockerfile .
 

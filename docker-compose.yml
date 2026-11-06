@@ -155,6 +155,47 @@ services:
     networks: [backend]
     restart: unless-stopped
 
+  bidding-service:
+    build:
+      context: .
+      dockerfile: backend/services/bidding-service/Dockerfile
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      BIDDING_SERVICE_PORT: ${BIDDING_SERVICE_PORT:-3003}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      BIDDING_DB_NAME: ${BIDDING_DB_NAME:-bidding_db}
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public.pem
+      JWT_ISSUER: ${JWT_ISSUER:-auction-auth-service}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-auction-platform}
+      RABBITMQ_URL: ${RABBITMQ_URL:?set RABBITMQ_URL in .env}
+      EVENTS_EXCHANGE: ${EVENTS_EXCHANGE:-auction.events}
+      SNIPE_WINDOW_SECONDS: ${SNIPE_WINDOW_SECONDS:-30}
+      SNIPE_EXTENSION_SECONDS: ${SNIPE_EXTENSION_SECONDS:-30}
+      MAX_EXTENSIONS: ${MAX_EXTENSIONS:-10}
+    volumes:
+      # Only the public key: this service can verify tokens but never create them.
+      - ./secrets/jwt_public.pem:/run/secrets/jwt_public.pem:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:' + process.env.BIDDING_SERVICE_PORT + '/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks: [backend]
+    restart: unless-stopped
+
   payment-service:
     build:
       context: .
