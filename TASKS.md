@@ -91,7 +91,7 @@ Only the `Due` column was re-dated for the new deadline. Wording, hours and depe
 | B-03 | RabbitMQ topology script: topic exchange, per-service queues, DLQs, bindings. **Unblocks A-13** | 3 | Tue 03.11 | B-01 | [ ] |
 | B-04 | bidding-service: SQL schema (auction_state, bids, idempotency_keys), indexes, seed | 4 | Tue 03.11 | A-04 | [x] |
 | B-05 | bidding-service: consume `auction.published/cancelled` to build the local auction snapshot (test with a publish script until A-13 lands) | 4 | Sun 08.11 | B-03, B-04 | [ ] |
-| B-06 | bidding-service: `POST /auctions/:id/bids` with transaction and `SELECT ... FOR UPDATE`; rules (increment, not own auction, time window, not already highest); `POST /internal/auctions/:id/cancel` under the same row lock (`docs/events.md` section 8) | 12 | Sun 08.11 | B-04, A-05 | [ ] |
+| B-06 | bidding-service: `POST /auctions/:id/bids` with transaction and `SELECT ... FOR UPDATE`; rules (increment, not own auction, time window, not already highest); `POST /internal/auctions/:id/cancel` under the same row lock (`docs/events.md` section 8) | 12 | Sun 08.11 | B-04, A-05 | [x] |
 | B-07 | bidding-service: anti-sniping extension with max-extensions cap (env-configurable) and `auction.extended` event | 4 | Sun 08.11 | B-06 | [ ] |
 | B-08 | bidding-service: `GET /auctions/:id/bids` (paginated), `GET /auctions/:id/state`, `GET /bids/me` | 5 | Wed 11.11 | B-06 | [ ] |
 | B-09 | bidding-service: Redis cache of highest bid (write-through after commit), cache-aside for state, TTL and invalidation | 5 | Wed 11.11 | B-06 | [ ] |
