@@ -104,8 +104,19 @@ test('routes bids, state and stream to bidding-service, not auction-service', as
   }
 });
 
-test('routes payment and notification paths, which answer 503 until those services exist', async () => {
-  for (const path of ['/wallet/me', '/payments', '/notifications']) {
+test('routes the wallet to payment-service', async () => {
+  const token = await login('bidder1@auction.test', 'Bidder#Demo2026');
+  const wallet = await call('/wallet/me', { headers: { Authorization: `Bearer ${token}` } });
+  assert.equal(wallet.status, 200);
+  assert.equal(wallet.body.currency, 'EUR');
+  // payment-service's own answer, unchanged by the gateway.
+  const anonymous = await call('/wallet/transactions');
+  assert.equal(anonymous.status, 401);
+  assert.equal(anonymous.body.error.code, 'UNAUTHORIZED');
+});
+
+test('routes notification paths, which answer 503 until that service exists', async () => {
+  for (const path of ['/notifications']) {
     assertGatewayError(await call(path), 503, 'SERVICE_UNAVAILABLE');
   }
 });
