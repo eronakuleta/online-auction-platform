@@ -7,6 +7,7 @@ import { createAuctionEventHandlers } from './events/auction-events.consumer';
 import { startClosingWorker } from './jobs/closing-worker';
 import { loadConfig } from './config';
 import { createPool } from './repositories/database';
+import { createBidQueryService } from './services/bid-query.service';
 import { createBiddingService } from './services/bidding.service';
 import { createClosingService } from './services/closing.service';
 import { createIdempotencyService } from './services/idempotency.service';
@@ -61,6 +62,7 @@ async function main(): Promise<void> {
     pool,
     biddingService,
     idempotency: createIdempotencyService(pool),
+    queries: createBidQueryService(pool),
     verifyToken,
     logger,
   });

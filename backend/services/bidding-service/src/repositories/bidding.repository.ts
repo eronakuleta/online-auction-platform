@@ -320,3 +320,91 @@ export async function cancelFromEvent(
   );
   return result.rows[0]!.status;
 }
+
+/** Reads the auction without locking it, for the public read endpoints (B-08). */
+export async function findAuctionState(
+  db: Queryable,
+  auctionId: string,
+): Promise<AuctionState | null> {
+  const result = await db.query<AuctionStateRow>(
+    `SELECT ${STATE_COLUMNS} FROM auction_state WHERE auction_id = $1`,
+    [auctionId],
+  );
+  return result.rows[0] === undefined ? null : toAuctionState(result.rows[0]);
+}
+
+export interface Page<T> {
+  items: T[];
+  total: number;
+}
+
+/** An auction's bids, newest first. The unique (auction_id, sequence) index serves this query. */
+export async function listBidsOfAuction(
+  db: Queryable,
+  auctionId: string,
+  limit: number,
+  offset: number,
+): Promise<Page<Bid>> {
+  const [rows, count] = await Promise.all([
+    db.query<BidRow>(
+      `SELECT id, auction_id, bidder_id, amount_cents, sequence, placed_at FROM bids
+       WHERE auction_id = $1 ORDER BY sequence DESC LIMIT $2 OFFSET $3`,
+      [auctionId, limit, offset],
+    ),
+    db.query<{ total: number }>('SELECT count(*)::int AS total FROM bids WHERE auction_id = $1', [
+      auctionId,
+    ]),
+  ]);
+  return { items: rows.rows.map(toBid), total: count.rows[0]!.total };
+}
+
+export interface MyBid extends Bid {
+  title: string;
+  currency: string;
+  auctionStatus: AuctionStatus;
+  endsAt: Date;
+  /** This bid is the auction's current highest bid (or the winning one once closed). */
+  isHighest: boolean;
+}
+
+/** A user's bids across all auctions, newest first (GET /bids/me). */
+export async function listBidsOfBidder(
+  db: Queryable,
+  bidderId: string,
+  limit: number,
+  offset: number,
+): Promise<Page<MyBid>> {
+  const [rows, count] = await Promise.all([
+    db.query<
+      BidRow & {
+        title: string;
+        currency: string;
+        status: AuctionStatus;
+        ends_at: Date;
+        is_highest: boolean;
+      }
+    >(
+      `SELECT b.id, b.auction_id, b.bidder_id, b.amount_cents, b.sequence, b.placed_at,
+         s.title, s.currency, s.status, s.ends_at, (s.highest_bid_id = b.id) AS is_highest
+       FROM bids b JOIN auction_state s ON s.auction_id = b.auction_id
+       WHERE b.bidder_id = $1
+       ORDER BY b.placed_at DESC, b.id
+       LIMIT $2 OFFSET $3`,
+      [bidderId, limit, offset],
+    ),
+    db.query<{ total: number }>('SELECT count(*)::int AS total FROM bids WHERE bidder_id = $1', [
+      bidderId,
+    ]),
+  ]);
+  return {
+    items: rows.rows.map((row) => ({
+      ...toBid(row),
+      title: row.title,
+      currency: row.currency,
+      auctionStatus: row.status,
+      endsAt: row.ends_at,
+      isHighest: row.is_highest,
+    })),
+    total: count.rows[0]!.total,
+  };
+}

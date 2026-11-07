@@ -10,7 +10,7 @@ import {
 import type { IdempotencyService } from '../services/idempotency.service';
 import { minimumNextBid, type BiddingService } from '../services/bidding.service';
 
-function toBidResponse(bid: Bid) {
+export function toBidResponse(bid: Bid) {
   return {
     id: bid.id,
     auctionId: bid.auctionId,
@@ -21,16 +21,19 @@ function toBidResponse(bid: Bid) {
   };
 }
 
-/** Public live data only. The reserve price stays secret. */
-function toAuctionStateResponse(auction: AuctionState) {
+/** Public live data only. The reserve price stays secret (decision Q8). */
+export function toAuctionStateResponse(auction: AuctionState) {
   return {
     auctionId: auction.auctionId,
+    title: auction.title,
+    sellerId: auction.sellerId,
     status: auction.status,
     currency: auction.currency,
     highestBidCents: auction.highestBidCents,
     highestBidderId: auction.highestBidderId,
     bidCount: auction.bidCount,
     minimumNextBidCents: minimumNextBid(auction),
+    startsAt: auction.startsAt?.toISOString() ?? null,
     endsAt: auction.endsAt?.toISOString() ?? null,
     extensionCount: auction.extensionCount,
     version: auction.version,

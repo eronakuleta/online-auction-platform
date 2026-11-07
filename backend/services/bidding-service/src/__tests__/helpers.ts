@@ -13,6 +13,7 @@ import jwt from 'jsonwebtoken';
 import { Client, Pool } from 'pg';
 import { createApp } from '../app';
 import { createPaymentClient } from '../clients/payment.client';
+import { createBidQueryService } from '../services/bid-query.service';
 import { createBiddingService } from '../services/bidding.service';
 import { createClosingService, type ClosingService } from '../services/closing.service';
 import { createIdempotencyService } from '../services/idempotency.service';
@@ -149,6 +150,7 @@ export async function createTestContext(): Promise<TestContext> {
       pool,
       biddingService,
       idempotency: createIdempotencyService(pool),
+      queries: createBidQueryService(pool),
       verifyToken,
       logger,
     }),

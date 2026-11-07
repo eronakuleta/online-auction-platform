@@ -12,6 +12,7 @@ import helmet from 'helmet';
 import type { Pool } from 'pg';
 import { pingDatabase } from './repositories/database';
 import { createInternalRoutes, createRoutes } from './routes';
+import type { BidQueryService } from './services/bid-query.service';
 import type { BiddingService } from './services/bidding.service';
 import type { IdempotencyService } from './services/idempotency.service';
 
@@ -19,13 +20,14 @@ export interface AppDependencies {
   pool: Pool;
   biddingService: BiddingService;
   idempotency: IdempotencyService;
+  queries: BidQueryService;
   verifyToken: TokenVerifier;
   logger: Logger;
 }
 
 /** Builds the Express app without listening, so tests can call it directly. */
 export function createApp(deps: AppDependencies): Express {
-  const { pool, biddingService, idempotency, verifyToken, logger } = deps;
+  const { pool, biddingService, idempotency, queries, verifyToken, logger } = deps;
   const app = express();
   app.disable('x-powered-by');
 
@@ -47,7 +49,7 @@ export function createApp(deps: AppDependencies): Express {
     res.status(200).json({ status: 'ok' });
   });
 
-  app.use('/api/v1', createRoutes(biddingService, idempotency, verifyToken));
+  app.use('/api/v1', createRoutes(biddingService, idempotency, queries, verifyToken));
   app.use('/internal', createInternalRoutes(biddingService, idempotency));
 
   app.use(notFoundHandler());
