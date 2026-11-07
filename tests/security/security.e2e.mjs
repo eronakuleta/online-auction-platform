@@ -171,6 +171,10 @@ describe('RBAC matrix: role checks in routes, ownership in services', () => {
     ['PATCH', `/users/${BIDDER2_ID}/roles`, { roles: ['BIDDER'] }, [401, 403, 403, 200]],
     ['PATCH', `/users/${unknownId}/status`, { status: 'BANNED' }, [401, 403, 403, 404]],
     ['GET', '/auctions/mine', undefined, [401, 403, 200, 403]],
+    // bidding-service. An amount of 0 is invalid, so no bid is ever placed by this suite.
+    ['POST', `/auctions/${SEEDED_LIVE_ID}/bids`, { amountCents: 0 }, [401, 400, 400, 403]],
+    // Settlements are for admins only.
+    ['GET', '/payments', undefined, [401, 403, 403, 200]],
     ['GET', '/categories', undefined, [200, 200, 200, 200]],
     // A 1-character name is invalid, so the admin's allowed request creates nothing (400, not 201).
     ['POST', '/categories', { name: 'x' }, [401, 403, 403, 400]],
@@ -267,7 +271,12 @@ describe('SQL injection: payloads are data, never SQL', () => {
 
 describe('CORS', () => {
   test('the frontend origin may read answers, including errors', async () => {
-    for (const path of ['/auctions', '/users/me', '/wallet/me']) {
+    for (const path of [
+      '/auctions',
+      '/users/me',
+      '/wallet/me',
+      `/auctions/${SEEDED_LIVE_ID}/bids`,
+    ]) {
       const response = await call(path, { headers: { Origin: FRONTEND } });
       assert.equal(response.headers.get('access-control-allow-origin'), FRONTEND, path);
       assert.match(response.headers.get('vary') ?? '', /Origin/);

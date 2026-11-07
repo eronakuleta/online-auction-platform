@@ -208,3 +208,15 @@ How to explain each of Erona's tasks (`A-xx`) at the defense. Short, in our own 
 - **No deadlocks, no rounding errors.** The wallets are always locked in ID order, so two settlements that share wallets wait for each other instead of deadlocking (8 parallel settlements between the same two people are tested). The fee is `floor(amount * percent / 100)` with BigInt, and the seller gets `amount - fee`, so the parts always add up, even at the largest safe integer.
 - **Failure paths.** Too little money or no wallet: nothing moves, the settlement is FAILED with the reason, and `payment.failed` is published; auction-service then shows PAYMENT_FAILED. A seller without a wallet gets one (Q11). Another currency throws, so the event is retried and dead-lettered for a person. `GET /payments` lets admins see every settlement.
 - **Proven across services.** On the real stack a test publishes `auction.closed` to the exchange as bidding's closing worker does; payment settles, auction-service ends SETTLED, the balances and the admin list match. We broke 11 money rules on purpose: 10 were caught, and the 11th behaves identically because the unique index still decides. All 76 payment tests are listed in `docs/test-evidence/payment-service.md`.
+
+## A-23 Security hardening (part 2)
+
+- **Every running service is covered now.** The security suite checks the RBAC matrix and the security headers for bidding-service too (placing a bid needs the BIDDER role: a visitor gets 401, an admin 403) and that `GET /payments` is for admins only. 19 endpoints × 4 roles, 45 tests, all through the gateway on a fresh stack and in CI.
+- **No test ever places a bid.** The bid rows send an amount of 0, which the server must refuse with 400 after the role check, so the suite proves the role check without changing any data.
+- **What is left.** notification-service is not built yet; it joins the same way (helmet, the gateway route, rows in the matrix) when it exists.
+
+## A-29 and A-30 Presentation and defense preparation
+
+- **The deck** (12 slides: scope and decisions, architecture, events, data, auth, auction, payment, security, testing, frontend, honest limits) is at https://claude.ai/artifact/C79jdRJn9zVonUeGP6mE77 and downloads as PowerPoint or PDF. Every number on it comes from the repository or a CI run; speaker notes hold the details to say aloud. It is private until shared from its Share menu.
+- **The demo script** is `docs/defense-notes/erona-demo.md`: the UI, a real bid through the gateway, closing the auction early with one SQL update in bidding's database, and the settlement across three services ending in `SETTLED`. It was rehearsed on a fresh stack; the expected numbers in it are the ones that run produced.
+- **Live-change drills** are in the same file: the change, where it goes, and which test proves it (fee, deposit limit, login lock, a category limit with a new SQL file, a new field with the OpenAPI test, a forbidden state change). Practise each once before the defense.

@@ -1,8 +1,10 @@
 # Security tests and audit
 
 Owner: Erona (task A-23). Hardening covers what exists today: the gateway, auth-service,
-auction-service and payment-service (joined in A-17). Anesa's services reuse the same pieces when
-they are built: helmet in the app, routing through the gateway, and new rows in the RBAC matrix below.
+auction-service, payment-service (joined in A-17) and bidding-service (Anesa's code already uses
+helmet and a body limit; the suite checks its headers and its role check on placing a bid).
+notification-service joins the same way when it is built: helmet in the app, routing through the
+gateway, and new rows in the RBAC matrix below.
 
 ## What is in place
 
@@ -36,7 +38,7 @@ so it can run right after the smoke test. CI runs both in the "Gateway smoke tes
 | Group         | What it proves                                                                                                                                                                                                                                                                                          |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | JWT           | No token, garbage, expired, forged (other key), `alg: none`, HS256 signed with the public key, wrong issuer, wrong audience, unknown role, no roles, and a real token edited to `ADMIN`: all get the same `401`. A token signed with the real key is accepted, so the suite is not refusing everything. |
-| RBAC matrix   | 17 endpoints (3 of them the wallet, 2 categories) × visitor, bidder, seller, admin, with the exact expected status for each, plus one ownership case (another seller's draft is a 404).                                                                                                                 |
+| RBAC matrix   | 19 endpoints (3 of them the wallet, 2 categories, bids, settlements) × visitor, bidder, seller, admin, with the exact expected status for each, plus one ownership case (another seller's draft is a 404).                                                                                              |
 | SQL injection | 7 payloads (`' OR '1'='1`, `DROP TABLE`, `UNION SELECT`, `pg_sleep`, ...) in search, sort, filters, IDs, the admin user filter and login. Search treats them as words, everything else gives `400`, `pg_sleep` never runs, and nothing is dropped.                                                      |
 | CORS          | The frontend origin may read answers, including gateway errors; preflights work; other origins (including `http://localhost:5173.evil.test` and `null`) get nothing; credentials are never allowed.                                                                                                     |
 | Headers       | `nosniff`, `X-Frame-Options`, CSP, no `X-Powered-By`, no HSTS, no stack trace in a 503.                                                                                                                                                                                                                 |

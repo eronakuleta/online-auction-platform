@@ -29,21 +29,21 @@ describe('passwordMatches', () => {
   });
 
   it('refuses every password when there is no user, but still does the slow check', async () => {
-    const hash = await hashPassword('Warm#Up12');
-    const timed = async (work: () => Promise<boolean>) => {
-      const started = process.hrtime.bigint();
-      const result = await work();
-      return { result, ms: Number(process.hrtime.bigint() - started) / 1e6 };
-    };
     // The first unknown-email lookup creates the dummy hash; measure the ones after it.
     await passwordMatches(undefined, 'anything');
 
-    const unknown = await timed(() => passwordMatches(undefined, 'Correct#Horse9'));
-    const known = await timed(() => passwordMatches(hash, 'Correct#Horse9'));
+    const timings: number[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      const started = process.hrtime.bigint();
+      expect(await passwordMatches(undefined, 'Correct#Horse9')).toBe(false);
+      timings.push(Number(process.hrtime.bigint() - started) / 1e6);
+    }
 
-    expect(unknown.result).toBe(false);
-    // Not a precise timing test: it only proves an argon2 verify really ran (a plain "return false"
-    // takes well under a millisecond), so an unknown email is not answered visibly faster.
-    expect(unknown.ms).toBeGreaterThan(known.ms / 4);
+    // Not a precise timing test: it proves an argon2 verify really ran, so an unknown email is not
+    // answered visibly faster. A real verify takes tens of milliseconds; a plain "return false"
+    // takes well under one. The fastest of three runs is used, so a slow, busy CI machine can only
+    // make it pass more clearly, never fail it. (An earlier version compared two timings with each
+    // other, and one pause on a busy machine could break that ratio.)
+    expect(Math.min(...timings)).toBeGreaterThan(5);
   });
 });
