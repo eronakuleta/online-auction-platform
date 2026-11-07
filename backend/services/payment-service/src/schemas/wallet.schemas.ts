@@ -15,6 +15,13 @@ export const transactionsQuerySchema = z.strictObject({
   size: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+/** GET /payments (ADMIN). */
+export const listPaymentsQuerySchema = z.strictObject({
+  status: z.enum(['COMPLETED', 'FAILED']).optional(),
+  page: z.coerce.number().int().min(1).max(1_000_000).default(1),
+  size: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 /** GET /internal/funds-check (decision Q10). Query values arrive as strings. */
 export const fundsCheckQuerySchema = z.strictObject({
   userId: z.uuid(),

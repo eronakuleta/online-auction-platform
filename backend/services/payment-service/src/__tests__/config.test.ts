@@ -13,6 +13,7 @@ const validEnv = {
   CURRENCY: 'EUR',
   RABBITMQ_URL: 'amqp://auction:secret-value@rabbitmq:5672',
   EVENTS_EXCHANGE: 'auction.events',
+  PLATFORM_FEE_PERCENT: '5',
 };
 
 describe('loadConfig', () => {
@@ -23,6 +24,7 @@ describe('loadConfig', () => {
     expect(config.database).toMatchObject({ database: 'payment_db', port: 5432 });
     expect(config.currency).toBe('EUR');
     expect(config.events.exchange).toBe('auction.events');
+    expect(config.platformFeePercent).toBe(5);
   });
 
   it('fails fast, names every missing variable, and never prints a value', () => {

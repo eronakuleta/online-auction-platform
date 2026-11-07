@@ -18,6 +18,7 @@ const envSchema = z.object({
   CURRENCY: z.string().regex(/^[A-Z]{3}$/),
   RABBITMQ_URL: required,
   EVENTS_EXCHANGE: required,
+  PLATFORM_FEE_PERCENT: z.coerce.number().int().min(0).max(100),
 });
 
 export interface Config {
@@ -29,6 +30,8 @@ export interface Config {
   currency: string;
   /** The URL contains the RabbitMQ password, so it is never logged. */
   events: { rabbitmqUrl: string; exchange: string };
+  /** The platform keeps floor(amount * percent / 100) of every sale. */
+  platformFeePercent: number;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -54,5 +57,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     },
     currency: values.CURRENCY,
     events: { rabbitmqUrl: values.RABBITMQ_URL, exchange: values.EVENTS_EXCHANGE },
+    platformFeePercent: values.PLATFORM_FEE_PERCENT,
   };
 }
