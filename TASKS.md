@@ -1,4 +1,4 @@
-[x] |[x] |[x] |# Task Division: Online Auction Platform
+# Task Division: Online Auction Platform
 
 **Erona:** tasks `A-01` to `A-31`  **Anesa:** tasks `B-01` to `B-25`
 
@@ -86,9 +86,9 @@ Only the `Due` column was re-dated for the new deadline. Wording, hours and depe
 
 | ID | Task | Hrs | Due | Deps | Done |
 |---|---|---|---|---|---|
-| B-01 | `docs/events.md`: exchange, routing keys, payload schemas, versioning, retry/DLQ policy; API conventions (error format, pagination). Agree with Erona. **Unblocks A-03 and A-13** | 3 | Tue 03.11 | none | [ ] |
-| B-02 | `backend/shared`: pino logger with correlation IDs, error classes and Express error handler, publisher/consumer helpers (amqplib, ack/nack, retry). **Unblocks A-05, A-07, A-08, A-11, A-13, A-17, A-18** | 7 | Tue 03.11 | B-01 | [ ] |
-| B-03 | RabbitMQ topology script: topic exchange, per-service queues, DLQs, bindings. **Unblocks A-13** | 3 | Tue 03.11 | B-01 | [ ] |
+| B-01 | `docs/events.md`: exchange, routing keys, payload schemas, versioning, retry/DLQ policy; API conventions (error format, pagination). Agree with Erona. **Unblocks A-03 and A-13** | 3 | Tue 03.11 | none | [x] |
+| B-02 | `backend/shared`: pino logger with correlation IDs, error classes and Express error handler, publisher/consumer helpers (amqplib, ack/nack, retry). **Unblocks A-05, A-07, A-08, A-11, A-13, A-17, A-18** | 7 | Tue 03.11 | B-01 | [x] |
+| B-03 | RabbitMQ topology script: topic exchange, per-service queues, DLQs, bindings. **Unblocks A-13** | 3 | Tue 03.11 | B-01 | [x] |
 | B-04 | bidding-service: SQL schema (auction_state, bids, idempotency_keys), indexes, seed | 4 | Tue 03.11 | A-04 | [x] |
 | B-05 | bidding-service: consume `auction.published/cancelled` to build the local auction snapshot (test with a publish script until A-13 lands) | 4 | Sun 08.11 | B-03, B-04 | [x] |
 | B-06 | bidding-service: `POST /auctions/:id/bids` with transaction and `SELECT ... FOR UPDATE`; rules (increment, not own auction, time window, not already highest); `POST /internal/auctions/:id/cancel` under the same row lock (`docs/events.md` section 8) | 12 | Sun 08.11 | B-04, A-05 | [x] |
