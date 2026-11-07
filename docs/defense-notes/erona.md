@@ -214,3 +214,9 @@ How to explain each of Erona's tasks (`A-xx`) at the defense. Short, in our own 
 - **Every running service is covered now.** The security suite checks the RBAC matrix and the security headers for bidding-service too (placing a bid needs the BIDDER role: a visitor gets 401, an admin 403) and that `GET /payments` is for admins only. 19 endpoints × 4 roles, 45 tests, all through the gateway on a fresh stack and in CI.
 - **No test ever places a bid.** The bid rows send an amount of 0, which the server must refuse with 400 after the role check, so the suite proves the role check without changing any data.
 - **What is left.** notification-service is not built yet; it joins the same way (helmet, the gateway route, rows in the matrix) when it exists.
+
+## A-29 and A-30 Presentation and defense preparation
+
+- **The deck** (12 slides: scope and decisions, architecture, events, data, auth, auction, payment, security, testing, frontend, honest limits) is at https://claude.ai/artifact/C79jdRJn9zVonUeGP6mE77 and downloads as PowerPoint or PDF. Every number on it comes from the repository or a CI run; speaker notes hold the details to say aloud. It is private until shared from its Share menu.
+- **The demo script** is `docs/defense-notes/erona-demo.md`: the UI, a real bid through the gateway, closing the auction early with one SQL update in bidding's database, and the settlement across three services ending in `SETTLED`. It was rehearsed on a fresh stack; the expected numbers in it are the ones that run produced.
+- **Live-change drills** are in the same file: the change, where it goes, and which test proves it (fee, deposit limit, login lock, a category limit with a new SQL file, a new field with the OpenAPI test, a forbidden state change). Practise each once before the defense.
