@@ -119,8 +119,11 @@ export function AuctionForm({
 
   const field = (name: keyof FormValues) => ({
     value: values[name],
-    onChange: (event: { target: { value: string } }) =>
-      setValues((current) => ({ ...current, [name]: event.target.value })),
+    onChange: (event: { target: { value: string } }) => {
+      setValues((current) => ({ ...current, [name]: event.target.value }));
+      // The hint was about the old value; it comes back on the next Save if still wrong.
+      setErrors((current) => ({ ...current, [name]: undefined }));
+    },
     error: Boolean(errors[name]),
     helperText: errors[name] ?? ' ',
   });
