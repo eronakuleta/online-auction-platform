@@ -195,6 +195,10 @@ describe('RBAC matrix: role checks in routes, ownership in services', () => {
           body: typeof body === 'function' ? body() : body,
         });
         actual.push(response.status);
+        // An allowed create made a real draft: delete it, so running the suite leaves no data.
+        if (method === 'POST' && path === '/auctions' && response.status === 201) {
+          await call(`/auctions/${response.body.id}`, { method: 'DELETE', token: tokens[role] });
+        }
       }
       assert.deepEqual(actual, expected, `visitor, bidder, seller, admin`);
     });
@@ -216,6 +220,12 @@ describe('RBAC matrix: role checks in routes, ownership in services', () => {
     });
     // A draft is invisible to other sellers, so 404 and not 403 (decision Q4).
     assert.equal(response.status, 404);
+    // The owner can still delete it, which also leaves no test data behind.
+    const removed = await call(`/auctions/${other.body.id}`, {
+      method: 'DELETE',
+      token: tokens.seller,
+    });
+    assert.equal(removed.status, 204);
   });
 });
 

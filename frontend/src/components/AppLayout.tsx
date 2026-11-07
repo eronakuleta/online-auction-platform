@@ -50,7 +50,8 @@ export function AppLayout() {
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <AppBar position="static">
-        <Toolbar>
+        {/* Wraps on narrow screens, so the logged-in buttons never make the page scroll sideways. */}
+        <Toolbar sx={{ flexWrap: 'wrap', columnGap: 2, py: 1 }}>
           <Typography
             variant="h6"
             component={RouterLink}
