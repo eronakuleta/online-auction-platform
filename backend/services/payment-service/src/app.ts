@@ -12,18 +12,20 @@ import helmet from 'helmet';
 import type { Pool } from 'pg';
 import { pingDatabase } from './repositories/database';
 import { createInternalRoutes, createRoutes } from './routes';
+import type { SettlementService } from './services/settlement.service';
 import type { WalletService } from './services/wallet.service';
 
 export interface AppDependencies {
   pool: Pool;
   walletService: WalletService;
+  settlementService: SettlementService;
   verifyToken: TokenVerifier;
   logger: Logger;
 }
 
 /** Builds the Express app without listening, so tests can call it directly. */
 export function createApp(deps: AppDependencies): Express {
-  const { pool, walletService, verifyToken, logger } = deps;
+  const { pool, walletService, settlementService, verifyToken, logger } = deps;
   const app = express();
   app.disable('x-powered-by');
 
@@ -47,7 +49,7 @@ export function createApp(deps: AppDependencies): Express {
   });
 
   app.use('/internal', createInternalRoutes(walletService));
-  app.use('/api/v1', createRoutes(walletService, verifyToken));
+  app.use('/api/v1', createRoutes(walletService, settlementService, verifyToken));
 
   app.use(notFoundHandler());
   app.use(createErrorHandler(logger));

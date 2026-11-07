@@ -1,11 +1,11 @@
 # API specifications (OpenAPI 3)
 
-| File                                | Service               | Owner | Status                                                                |
-| ----------------------------------- | --------------------- | ----- | --------------------------------------------------------------------- |
-| `auth.yaml`                         | auth-service          | Erona | Complete                                                              |
-| `auction.yaml`                      | auction-service       | Erona | Complete                                                              |
-| `payment.yaml`                      | payment-service       | Erona | Wallet and funds check; settlement and `GET /payments` come with A-18 |
-| `bidding.yaml`, `notification.yaml` | bidding, notification | Anesa | Task B-22                                                             |
+| File                                | Service               | Owner | Status                                                                      |
+| ----------------------------------- | --------------------- | ----- | --------------------------------------------------------------------------- |
+| `auth.yaml`                         | auth-service          | Erona | Complete                                                                    |
+| `auction.yaml`                      | auction-service       | Erona | Complete                                                                    |
+| `payment.yaml`                      | payment-service       | Erona | Complete (wallet, funds check, `GET /payments`; settlement is event-driven) |
+| `bidding.yaml`, `notification.yaml` | bidding, notification | Anesa | Task B-22                                                                   |
 
 ## View them
 

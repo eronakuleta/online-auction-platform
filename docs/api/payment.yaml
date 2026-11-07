@@ -3,8 +3,10 @@ info:
   title: payment-service
   version: 1.0.0
   description: |
-    Wallets, simulated deposits and the funds check (FR-11). Owner: Erona. Settlement after
-    `auction.closed` and `GET /payments` for admins come with task A-18 and are added here then.
+    Wallets, simulated deposits, the funds check (FR-11) and settlement (FR-12). Owner: Erona.
+    Settlement is not an endpoint: it runs when `auction.closed` reports a sale, in one transaction
+    (debit the winner, credit the seller the amount minus PLATFORM_FEE_PERCENT, credit the platform
+    the fee), at most once per auction, and publishes `payment.completed` or `payment.failed`.
     Money is integer cents. Every balance change writes a ledger row with the balance after it.
     Decisions referenced as Qn are in docs/requirements.md section 10.
 servers:
@@ -14,6 +16,7 @@ servers:
     description: Inside the Docker network only, for /internal endpoints (never routed by the gateway)
 tags:
   - name: Wallet
+  - name: Admin
   - name: Internal
 paths:
   /wallet/me:
@@ -89,6 +92,43 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /payments:
+    get:
+      tags: [Admin]
+      summary: Every settlement, completed or failed, newest first (ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [COMPLETED, FAILED] }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: One page of settlements
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page, size, total]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Settlement' }
+                  page: { type: integer }
+                  size: { type: integer }
+                  total: { type: integer }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: '`FORBIDDEN`: admins only'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /internal/funds-check:
     get:
       tags: [Internal]
@@ -157,6 +197,41 @@ components:
           description: Signed; negative for a debit
         balanceAfterCents: { type: integer, minimum: 0 }
         settlementId: { type: string, format: uuid, nullable: true }
+        createdAt: { type: string, format: date-time }
+    Settlement:
+      type: object
+      required:
+        - id
+        - auctionId
+        - winnerId
+        - sellerId
+        - amountCents
+        - currency
+        - status
+        - feeCents
+        - sellerCents
+        - failureReason
+        - createdAt
+      properties:
+        id: { type: string, format: uuid }
+        auctionId: { type: string, format: uuid, description: Unique, one settlement per auction }
+        winnerId: { type: string, format: uuid }
+        sellerId: { type: string, format: uuid }
+        amountCents: { type: integer, description: What the winner pays }
+        currency: { type: string, example: EUR }
+        status: { type: string, enum: [COMPLETED, FAILED] }
+        feeCents:
+          type: integer
+          nullable: true
+          description: floor(amountCents * PLATFORM_FEE_PERCENT / 100); null when FAILED
+        sellerCents:
+          type: integer
+          nullable: true
+          description: amountCents - feeCents; null when FAILED
+        failureReason:
+          type: string
+          enum: [INSUFFICIENT_FUNDS, WALLET_NOT_FOUND]
+          nullable: true
         createdAt: { type: string, format: date-time }
     Error:
       type: object

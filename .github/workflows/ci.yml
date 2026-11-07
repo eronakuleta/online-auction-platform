@@ -170,6 +170,13 @@ jobs:
           NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
         run: node --test tests/e2e/wallet.e2e.mjs
 
+      # Publishes auction.closed to the real exchange; payment-service settles and auction-service
+      # ends SETTLED or PAYMENT_FAILED (task A-18).
+      - name: Settlement test
+        env:
+          NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
+        run: node --test tests/e2e/settlement.e2e.mjs
+
       - name: Show logs on failure
         if: failure()
         run: docker compose logs --no-color --tail 100

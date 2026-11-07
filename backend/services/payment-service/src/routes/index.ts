@@ -1,11 +1,18 @@
 import { authenticate, requireRole, type TokenVerifier } from '@auction/shared-auth';
 import { Router } from 'express';
+import { createSettlementController } from '../controllers/settlement.controller';
 import { createWalletController } from '../controllers/wallet.controller';
+import type { SettlementService } from '../services/settlement.service';
 import type { WalletService } from '../services/wallet.service';
 
 /** The public API under /api/v1, reached through the gateway. */
-export function createRoutes(walletService: WalletService, verifyToken: TokenVerifier): Router {
+export function createRoutes(
+  walletService: WalletService,
+  settlementService: SettlementService,
+  verifyToken: TokenVerifier,
+): Router {
   const controller = createWalletController(walletService);
+  const settlements = createSettlementController(settlementService);
   // Decision Q13: bidders and sellers have wallets. Admins see money through GET /payments (A-18).
   const walletOwner = [authenticate(verifyToken), requireRole('BIDDER', 'SELLER')];
   const router = Router();
@@ -15,6 +22,9 @@ export function createRoutes(walletService: WalletService, verifyToken: TokenVer
   router.get('/wallet/me', walletOwner, controller.getMine);
   router.post('/wallet/deposit', walletOwner, controller.deposit);
   router.get('/wallet/transactions', walletOwner, controller.listTransactions);
+
+  // Every settlement, completed or failed, for admins (FR-12).
+  router.get('/payments', authenticate(verifyToken), requireRole('ADMIN'), settlements.list);
 
   return router;
 }

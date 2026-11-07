@@ -4,12 +4,19 @@ import { generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTokenVerifier, type Role } from '@auction/shared-auth';
-import { createLogger, type EventHandlers } from '@auction/shared-common';
+import {
+  createEvent,
+  createLogger,
+  type DomainEvent,
+  type EventHandlers,
+  type Publish,
+} from '@auction/shared-common';
 import type { Express } from 'express';
 import jwt from 'jsonwebtoken';
 import { Client, Pool } from 'pg';
 import { createApp } from '../app';
 import { createEventHandlers } from '../events/consumers';
+import { createSettlementService } from '../services/settlement.service';
 import { createWalletService } from '../services/wallet.service';
 
 // The default is the Docker Compose Postgres from .env.example. CI sets its own service container.
@@ -26,12 +33,19 @@ export const BIDDER_ID = '00000000-0000-4000-8000-000000000003';
 export const BIDDER2_ID = '00000000-0000-4000-8000-000000000004';
 export const SELLER_START_CENTS = 10_000;
 export const BIDDER_START_CENTS = 100_000;
+/** The fee the tests settle with (.env.example default). */
+export const PLATFORM_FEE_PERCENT = 5;
+export const PLATFORM_WALLET_ID = '40000000-0000-4000-8000-000000000000';
 
 export interface TestContext {
   app: Express;
   pool: Pool;
   /** The real handlers the RabbitMQ consumer calls, so tests can deliver events directly. */
-  handlers: EventHandlers<'payment-service'>;
+  handlers: Required<EventHandlers<'payment-service'>>;
+  /** Every event the service published, in order, already checked against the contract. */
+  published: DomainEvent[];
+  /** Makes publish() throw, as it does when the broker is down. */
+  failPublishing(fail: boolean): void;
   tokenFor(roles: Role[], userId?: string): string;
   close(): Promise<void>;
 }
@@ -61,11 +75,32 @@ export async function createTestContext(): Promise<TestContext> {
   const logger = createLogger({ service: 'payment-service-test', level: 'silent' });
   const verifyToken = createTokenVerifier({ publicKey, issuer: ISSUER, audience: AUDIENCE });
   const walletService = createWalletService({ pool, currency: 'EUR', logger });
+  const published: DomainEvent[] = [];
+  let publishFails = false;
+  // createEvent validates the payload against the shared contract, as the real publisher does.
+  const publish: Publish = async (type, payload) => {
+    if (publishFails) throw new Error('broker unavailable');
+    const event = createEvent(type, payload);
+    // TypeScript cannot narrow the generic DomainEvent<T> to the union; the value is the same.
+    published.push(event as DomainEvent);
+    return Promise.resolve(event);
+  };
+  const settlementService = createSettlementService({
+    pool,
+    feePercent: PLATFORM_FEE_PERCENT,
+    currency: 'EUR',
+    publish,
+    logger,
+  });
 
   return {
-    app: createApp({ pool, walletService, verifyToken, logger }),
+    app: createApp({ pool, walletService, settlementService, verifyToken, logger }),
     pool,
-    handlers: createEventHandlers(walletService),
+    handlers: createEventHandlers(walletService, settlementService),
+    published,
+    failPublishing(fail) {
+      publishFails = fail;
+    },
     tokenFor: (roles, userId = randomUUID()) =>
       jwt.sign({ roles }, privateKey, {
         algorithm: 'RS256',

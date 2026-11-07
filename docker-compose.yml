@@ -205,6 +205,8 @@ services:
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       PAYMENT_SERVICE_PORT: ${PAYMENT_SERVICE_PORT:-3004}
+      # The platform keeps floor(amount * percent / 100) of every sale (A-18).
+      PLATFORM_FEE_PERCENT: ${PLATFORM_FEE_PERCENT:-5}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}

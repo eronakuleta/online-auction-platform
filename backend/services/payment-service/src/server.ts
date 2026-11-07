@@ -5,6 +5,7 @@ import { createApp } from './app';
 import { loadConfig } from './config';
 import { createEventHandlers } from './events/consumers';
 import { createPool } from './repositories/database';
+import { createSettlementService } from './services/settlement.service';
 import { createWalletService } from './services/wallet.service';
 
 const logger = createLogger({ service: 'payment-service' });
@@ -28,9 +29,16 @@ async function main(): Promise<void> {
     exchange: config.events.exchange,
     logger,
   });
-  await bus.subscribe('payment-service', createEventHandlers(walletService));
+  const settlementService = createSettlementService({
+    pool,
+    feePercent: config.platformFeePercent,
+    currency: config.currency,
+    publish: bus.publish,
+    logger,
+  });
+  await bus.subscribe('payment-service', createEventHandlers(walletService, settlementService));
 
-  const app = createApp({ pool, walletService, verifyToken, logger });
+  const app = createApp({ pool, walletService, settlementService, verifyToken, logger });
   const server = app.listen(config.port, () => {
     logger.info({ port: config.port }, 'payment-service listening');
   });
