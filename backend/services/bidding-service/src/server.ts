@@ -2,12 +2,14 @@
 import { createTokenVerifier, loadPublicKey } from '@auction/shared-auth';
 import { connectEventBus, createLogger } from '@auction/shared-common';
 import { createApp } from './app';
+import { createPaymentClient } from './clients/payment.client';
 import { createAuctionEventHandlers } from './events/auction-events.consumer';
 import { startClosingWorker } from './jobs/closing-worker';
 import { loadConfig } from './config';
 import { createPool } from './repositories/database';
 import { createBiddingService } from './services/bidding.service';
 import { createClosingService } from './services/closing.service';
+import { createIdempotencyService } from './services/idempotency.service';
 
 const logger = createLogger({ service: 'bidding-service' });
 
@@ -34,6 +36,11 @@ async function main(): Promise<void> {
     publish: bus.publish,
     logger,
     antiSniping: config.antiSniping,
+    payment: createPaymentClient({
+      baseUrl: config.payment.url,
+      timeoutMs: config.payment.timeoutMs,
+      logger,
+    }),
   });
 
   await bus.subscribe('bidding-service', createAuctionEventHandlers({ pool, logger }));
@@ -50,7 +57,13 @@ async function main(): Promise<void> {
     logger,
   });
 
-  const app = createApp({ pool, biddingService, verifyToken, logger });
+  const app = createApp({
+    pool,
+    biddingService,
+    idempotency: createIdempotencyService(pool),
+    verifyToken,
+    logger,
+  });
   const server = app.listen(config.port, () => {
     logger.info({ port: config.port }, 'bidding-service listening');
   });

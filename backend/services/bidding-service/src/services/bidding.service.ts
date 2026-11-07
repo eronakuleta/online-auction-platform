@@ -7,6 +7,7 @@ import {
   type Publish,
 } from '@auction/shared-common';
 import type { Pool } from 'pg';
+import type { PaymentClient } from '../clients/payment.client';
 import { withTransaction } from '../repositories/database';
 import {
   currentTime,
@@ -30,6 +31,7 @@ export interface BiddingDependencies {
   publish: Publish;
   logger: Logger;
   antiSniping: AntiSnipingRules;
+  payment: PaymentClient;
 }
 
 export interface PlaceBidResult {
@@ -105,10 +107,22 @@ export function applyAntiSniping(
 }
 
 export function createBiddingService(deps: BiddingDependencies): BiddingService {
-  const { pool, publish, logger, antiSniping } = deps;
+  const { pool, publish, logger, antiSniping, payment } = deps;
 
   return {
     async placeBid(bidderId, auctionId, amountCents) {
+      // Before the transaction, so the row lock is never held during a network call (CLAUDE.md).
+      // Funds are checked, not reserved: a known limitation (ROADMAP §2, payment.failed handles it).
+      const funds = await payment.checkFunds(bidderId, amountCents);
+      if (funds !== 'SUFFICIENT') {
+        throw new ConflictError(
+          'INSUFFICIENT_FUNDS',
+          funds === 'NO_WALLET'
+            ? 'You have no wallet yet. Deposit money before bidding'
+            : 'Your wallet balance does not cover this bid',
+        );
+      }
+
       let previousHighestBidderId: string | null = null;
       let extended = false;
 
