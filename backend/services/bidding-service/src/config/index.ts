@@ -20,6 +20,8 @@ const envSchema = z.object({
   SNIPE_WINDOW_SECONDS: z.coerce.number().int().min(0),
   SNIPE_EXTENSION_SECONDS: z.coerce.number().int().positive(),
   MAX_EXTENSIONS: z.coerce.number().int().min(0),
+  PAYMENT_SERVICE_URL: z.url(),
+  FUNDS_CHECK_TIMEOUT_MS: z.coerce.number().int().positive(),
   CLOSING_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
   CLOSING_BATCH_SIZE: z.coerce.number().int().positive().default(50),
 });
@@ -32,6 +34,7 @@ export interface Config {
   events: { rabbitmqUrl: string; exchange: string };
   antiSniping: { windowSeconds: number; extensionSeconds: number; maxExtensions: number };
   closing: { intervalMs: number; batchSize: number };
+  payment: { url: string; timeoutMs: number };
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -61,6 +64,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       extensionSeconds: values.SNIPE_EXTENSION_SECONDS,
       maxExtensions: values.MAX_EXTENSIONS,
     },
+    payment: { url: values.PAYMENT_SERVICE_URL, timeoutMs: values.FUNDS_CHECK_TIMEOUT_MS },
     closing: { intervalMs: values.CLOSING_INTERVAL_MS, batchSize: values.CLOSING_BATCH_SIZE },
   };
 }

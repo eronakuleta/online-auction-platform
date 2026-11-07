@@ -65,3 +65,19 @@ How to explain each of Anesa's tasks (`B-xx`) at the defense. Short, in our own 
 - **Out-of-order events.** If `auction.cancelled` overtakes `auction.published`, a `CANCELLED` placeholder is stored. The late publish uses `ON CONFLICT DO NOTHING`, so it can never reopen a cancelled auction.
 - **A cancel never overrides a result.** The cancel only changes an `OPEN` row. An auction that is already closed or cancelled (for example by the internal cancel call) is left as it is.
 - **Bad data is not swallowed.** A snapshot that breaks a database rule makes the handler throw, so the shared consumer retries it and finally sends it to the dead-letter queue, where a person can look at it.
+
+## B-10 Funds check and Idempotency-Key
+
+- **Funds check before the lock.** Bidding asks payment-service `GET /internal/funds-check` before `BEGIN`, so the auction row is never locked while we wait for the network. A test proves another bidder can bid while payment-service is silent.
+- **Timeout and retry, but not twice the wait.** Each call has a 2 s timeout. A quick failure (connection refused, 5xx) is tried once more; a timeout is not, because the bidder would wait 4 s. If payment cannot answer, the bid gets `503` and nothing is stored.
+- **Checked, not reserved.** The balance is checked, not locked, so a user can bid on several auctions beyond their balance. That is the known limitation in ROADMAP §2; settlement then publishes `payment.failed`.
+- **Idempotency-Key.** The first request with a key claims it in `idempotency_keys` (unique per user and key) and stores its answer. A retry with the same key and the same request gets the stored answer (`Idempotent-Replayed: true`) and never places a second bid; the same key with a different request is `409 IDEMPOTENCY_KEY_REUSED`.
+- **Which answers are stored.** A rule rejection (4xx) is the real answer, so it is replayed too. A 503 or a bug may work next time, so the key is freed and the retry really runs again. A key left unfinished by a crash is taken over after 60 s.
+
+## B-08 Bid history, live state and my bids
+
+- **Decision Q3: public and read-only.** Bid history and live state need no token, like the catalog and the SSE stream. They never contain the reserve price (decision Q8). Only `GET /bids/me` needs a login, because it is about one user.
+- **Why the state endpoint exists.** The live page loads it once, then follows the SSE stream (B-12). It includes `minimumNextBidCents`, so the page can show the lowest valid bid; the server still checks every bid itself.
+- **Reads do not lock.** Unlike place-bid, these queries use plain `SELECT` without `FOR UPDATE`, so a page full of readers never slows down bidding.
+- **Pagination follows the team convention.** `?page=1&size=20`, size capped at 100, and `{ data, page, size, total }`. History is ordered by `sequence`, which the unique `(auction_id, sequence)` index already serves.
+- **My bids shows `isHighest`.** It compares each bid with the auction's `highest_bid_id`, so the page can show "you are winning" or "outbid" without a second request.

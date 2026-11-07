@@ -3,12 +3,14 @@ import type { RequestHandler } from 'express';
 import type { AuctionState, Bid } from '../repositories/bidding.repository';
 import {
   auctionIdParamsSchema,
+  idempotencyKeySchema,
   internalCancelBodySchema,
   placeBidBodySchema,
 } from '../schemas/bid.schemas';
+import type { IdempotencyService } from '../services/idempotency.service';
 import { minimumNextBid, type BiddingService } from '../services/bidding.service';
 
-function toBidResponse(bid: Bid) {
+export function toBidResponse(bid: Bid) {
   return {
     id: bid.id,
     auctionId: bid.auctionId,
@@ -19,29 +21,50 @@ function toBidResponse(bid: Bid) {
   };
 }
 
-/** Public live data only. The reserve price stays secret. */
-function toAuctionStateResponse(auction: AuctionState) {
+/** Public live data only. The reserve price stays secret (decision Q8). */
+export function toAuctionStateResponse(auction: AuctionState) {
   return {
     auctionId: auction.auctionId,
+    title: auction.title,
+    sellerId: auction.sellerId,
     status: auction.status,
     currency: auction.currency,
     highestBidCents: auction.highestBidCents,
     highestBidderId: auction.highestBidderId,
     bidCount: auction.bidCount,
     minimumNextBidCents: minimumNextBid(auction),
+    startsAt: auction.startsAt?.toISOString() ?? null,
     endsAt: auction.endsAt?.toISOString() ?? null,
     extensionCount: auction.extensionCount,
     version: auction.version,
   };
 }
 
-export function createBidController(biddingService: BiddingService) {
+export function createBidController(
+  biddingService: BiddingService,
+  idempotency: IdempotencyService,
+) {
   const placeBid: RequestHandler = async (req, res) => {
     const user = getAuthUser(req);
     const { id } = auctionIdParamsSchema.parse(req.params);
     const { amountCents } = placeBidBodySchema.parse(req.body);
-    const { bid, auction } = await biddingService.placeBid(user.id, id, amountCents);
-    res.status(201).json({ bid: toBidResponse(bid), auction: toAuctionStateResponse(auction) });
+    const key = idempotencyKeySchema.parse(req.header('Idempotency-Key'));
+
+    const work = async () => {
+      const { bid, auction } = await biddingService.placeBid(user.id, id, amountCents);
+      return {
+        status: 201,
+        body: { bid: toBidResponse(bid), auction: toAuctionStateResponse(auction) },
+      };
+    };
+    const result =
+      key === undefined
+        ? { ...(await work()), replayed: false }
+        : await idempotency.run(user.id, key, { auctionId: id, amountCents }, work);
+    if (result.replayed) {
+      res.set('Idempotent-Replayed', 'true');
+    }
+    res.status(result.status).json(result.body);
   };
 
   const cancelAuction: RequestHandler = async (req, res) => {

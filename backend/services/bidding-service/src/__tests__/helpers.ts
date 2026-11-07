@@ -1,7 +1,10 @@
 // Test setup: a real Postgres with a throwaway database per test file, built from the same SQL
-// files as production, real RS256 tokens, and a fake publisher that records events.
+// files as production, real RS256 tokens, a fake publisher that records events, and a real HTTP
+// server standing in for payment-service's funds check.
 import { generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { createTokenVerifier, type Role } from '@auction/shared-auth';
 import { createEvent, createLogger, type DomainEvent, type Publish } from '@auction/shared-common';
@@ -9,8 +12,11 @@ import type { Express } from 'express';
 import jwt from 'jsonwebtoken';
 import { Client, Pool } from 'pg';
 import { createApp } from '../app';
+import { createPaymentClient } from '../clients/payment.client';
+import { createBidQueryService } from '../services/bid-query.service';
 import { createBiddingService } from '../services/bidding.service';
 import { createClosingService, type ClosingService } from '../services/closing.service';
+import { createIdempotencyService } from '../services/idempotency.service';
 
 // The default is the Docker Compose Postgres from .env.example. CI sets its own service container.
 const ADMIN_URL =
@@ -35,6 +41,9 @@ export const UPCOMING_ID = '10000000-0000-4000-8000-000000000003';
 /** CLOSED_NO_SALE. */
 export const CLOSED_ID = '10000000-0000-4000-8000-000000000006';
 
+/** How the fake payment-service answers a funds check. */
+export type FundsAnswer = 'sufficient' | 'insufficient' | 'no-wallet' | 'error' | 'hang';
+
 export interface TestContext {
   app: Express;
   pool: Pool;
@@ -43,6 +52,10 @@ export interface TestContext {
   /** Makes the next publish fail, as if the broker were down. */
   failNextPublish(): void;
   tokenFor(userId: string, roles?: Role[]): string;
+  /** Sets the fake payment-service's answers, in order; then it answers 'sufficient' again. */
+  answerFundsCheck(...answers: FundsAnswer[]): void;
+  /** Every funds check the fake payment-service received. */
+  fundsChecks: { userId: string; amountCents: number }[];
   /** A closing service on the same database (batch size 50), as each replica would have. */
   newClosingService(batchSize?: number): ClosingService;
   /** Moves the auction's end time 1 s into the past, as if it had just ended. */
@@ -91,13 +104,60 @@ export async function createTestContext(): Promise<TestContext> {
     return event;
   };
 
+  const fundsChecks: { userId: string; amountCents: number }[] = [];
+  let fundsAnswers: FundsAnswer[] = [];
+  const hanging: { destroy(): void }[] = [];
+  const fakePayment = createServer((req, res) => {
+    const query = new URL(req.url ?? '/', 'http://fake').searchParams;
+    const userId = query.get('userId') ?? '';
+    const amountCents = Number(query.get('amountCents'));
+    fundsChecks.push({ userId, amountCents });
+    const answer = fundsAnswers.shift() ?? 'sufficient';
+    if (answer === 'hang') {
+      hanging.push(res);
+      return;
+    }
+    const [status, body] =
+      answer === 'no-wallet'
+        ? [404, { error: { code: 'WALLET_NOT_FOUND', message: 'no wallet', details: [] } }]
+        : answer === 'error'
+          ? [500, { error: { code: 'INTERNAL_ERROR', message: 'boom', details: [] } }]
+          : [200, { userId, amountCents, balanceCents: 0, sufficient: answer === 'sufficient' }];
+    res.writeHead(status, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(body));
+  });
+  await new Promise<void>((resolve) => fakePayment.listen(0, '127.0.0.1', resolve));
+  const { port } = fakePayment.address() as AddressInfo;
+
   const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const logger = createLogger({ service: 'bidding-service-test', level: 'silent' });
   const verifyToken = createTokenVerifier({ publicKey, issuer: ISSUER, audience: AUDIENCE });
-  const biddingService = createBiddingService({ pool, publish, logger, antiSniping: ANTI_SNIPING });
+  const payment = createPaymentClient({
+    baseUrl: `http://127.0.0.1:${port}`,
+    timeoutMs: 300,
+    logger,
+  });
+  const biddingService = createBiddingService({
+    pool,
+    publish,
+    logger,
+    antiSniping: ANTI_SNIPING,
+    payment,
+  });
 
   return {
-    app: createApp({ pool, biddingService, verifyToken, logger }),
+    app: createApp({
+      pool,
+      biddingService,
+      idempotency: createIdempotencyService(pool),
+      queries: createBidQueryService(pool),
+      verifyToken,
+      logger,
+    }),
+    fundsChecks,
+    answerFundsCheck(...answers) {
+      fundsAnswers = answers;
+    },
     pool,
     published,
     failNextPublish() {
@@ -148,6 +208,9 @@ export async function createTestContext(): Promise<TestContext> {
       // test that opened many at once. DROP DATABASE ... WITH (FORCE) then terminates them
       // (57P01), and without a listener the pool would report that as an unhandled error.
       pool.on('error', () => {});
+      hanging.forEach((res) => res.destroy());
+      fakePayment.closeAllConnections();
+      await new Promise((resolve) => fakePayment.close(resolve));
       await pool.end();
       await withAdminClient((client) => client.query(`DROP DATABASE ${database} WITH (FORCE)`));
     },

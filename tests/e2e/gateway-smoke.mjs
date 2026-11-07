@@ -92,16 +92,17 @@ test('routes bids, state and stream to bidding-service, not auction-service', as
     body: JSON.stringify({ amountCents: 9000 }),
   });
   assertGatewayError(bid, 401, 'UNAUTHORIZED');
-  // The same location serves state and stream. bidding-service answers 404 for them, and for
-  // GET /bids and /bids/me, until B-08 and B-12 add those endpoints.
-  for (const path of [
-    `/auctions/${SEEDED_LIVE_ID}/bids`,
-    `/auctions/${SEEDED_LIVE_ID}/state`,
-    `/auctions/${SEEDED_LIVE_ID}/stream`,
-    '/bids/me',
-  ]) {
-    assertGatewayError(await call(path), 404, 'NOT_FOUND');
-  }
+  // The same location serves the public history and state (B-08, decision Q3).
+  const history = await call(`/auctions/${SEEDED_LIVE_ID}/bids`);
+  assert.equal(history.status, 200);
+  assert.ok(Array.isArray(history.body.data));
+  const state = await call(`/auctions/${SEEDED_LIVE_ID}/state`);
+  assert.equal(state.status, 200);
+  assert.equal(state.body.auctionId, SEEDED_LIVE_ID);
+  // /bids goes to bidding-service too, and a user's own bids need a token.
+  assertGatewayError(await call('/bids/me'), 401, 'UNAUTHORIZED');
+  // The stream comes with B-12.
+  assertGatewayError(await call(`/auctions/${SEEDED_LIVE_ID}/stream`), 404, 'NOT_FOUND');
 });
 
 test('routes the wallet to payment-service', async () => {
