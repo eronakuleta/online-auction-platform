@@ -17,6 +17,7 @@ import { createBidQueryService } from '../services/bid-query.service';
 import { createBiddingService } from '../services/bidding.service';
 import { createClosingService, type ClosingService } from '../services/closing.service';
 import { createIdempotencyService } from '../services/idempotency.service';
+import { createNoStateCache, type StateCache } from '../repositories/state-cache';
 
 // The default is the Docker Compose Postgres from .env.example. CI sets its own service container.
 const ADMIN_URL =
@@ -81,7 +82,10 @@ async function withAdminClient(work: (client: Client) => Promise<unknown>): Prom
   }
 }
 
-export async function createTestContext(): Promise<TestContext> {
+export async function createTestContext(
+  options: { cache?: StateCache } = {},
+): Promise<TestContext> {
+  const cache = options.cache ?? createNoStateCache();
   const database = `bidding_test_${randomBytes(6).toString('hex')}`;
   await withAdminClient((client) => client.query(`CREATE DATABASE ${database}`));
 
@@ -143,6 +147,7 @@ export async function createTestContext(): Promise<TestContext> {
     logger,
     antiSniping: ANTI_SNIPING,
     payment,
+    cache,
   });
 
   return {
@@ -150,7 +155,7 @@ export async function createTestContext(): Promise<TestContext> {
       pool,
       biddingService,
       idempotency: createIdempotencyService(pool),
-      queries: createBidQueryService(pool),
+      queries: createBidQueryService(pool, cache),
       verifyToken,
       logger,
     }),
@@ -164,7 +169,7 @@ export async function createTestContext(): Promise<TestContext> {
       publishFails = true;
     },
     newClosingService: (batchSize = 50) =>
-      createClosingService({ pool, publish, logger, batchSize }),
+      createClosingService({ pool, publish, logger, batchSize, cache }),
     async expireAuction(auctionId) {
       await pool.query(
         `UPDATE auction_state

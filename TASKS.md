@@ -94,7 +94,7 @@ Only the `Due` column was re-dated for the new deadline. Wording, hours and depe
 | B-06 | bidding-service: `POST /auctions/:id/bids` with transaction and `SELECT ... FOR UPDATE`; rules (increment, not own auction, time window, not already highest); `POST /internal/auctions/:id/cancel` under the same row lock (`docs/events.md` section 8) | 12 | Sun 08.11 | B-04, A-05 | [x] |
 | B-07 | bidding-service: anti-sniping extension with max-extensions cap (env-configurable) and `auction.extended` event | 4 | Sun 08.11 | B-06 | [x] |
 | B-08 | bidding-service: `GET /auctions/:id/bids` (paginated), `GET /auctions/:id/state`, `GET /bids/me` | 5 | Wed 11.11 | B-06 | [x] |
-| B-09 | bidding-service: Redis cache of highest bid (write-through after commit), cache-aside for state, TTL and invalidation | 5 | Wed 11.11 | B-06 | [ ] |
+| B-09 | bidding-service: Redis cache of highest bid (write-through after commit), cache-aside for state, TTL and invalidation | 5 | Wed 11.11 | B-06 | [x] |
 | B-10 | bidding-service: Idempotency-Key handling and funds check against payment-service with timeout and retry (use a stub until A-17 lands, then switch to real) | 7 | Sun 08.11 | B-06, A-17 | [x] |
 | B-11 | bidding-service: closing worker (`FOR UPDATE SKIP LOCKED`), winner and reserve-price logic, publishes `auction.closed`. **Unblocks A-18** | 8 | Sun 08.11 | B-06, B-07 | [x] |
 | B-12 | bidding-service: SSE `/auctions/:id/stream` with Redis pub/sub fan-out for 2 replicas, heartbeat. **Unblocks A-21** | 8 | Wed 11.11 | B-09, B-11 | [ ] |

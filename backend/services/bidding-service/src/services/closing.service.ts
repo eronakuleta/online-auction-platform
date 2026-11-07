@@ -3,6 +3,8 @@
 import type { EventPayload, Logger, Publish } from '@auction/shared-common';
 import type { Pool } from 'pg';
 import { withTransaction } from '../repositories/database';
+import type { StateCache } from '../repositories/state-cache';
+import { refreshCachedState } from './cache-refresh';
 import {
   listBidderIds,
   lockExpiredAuctions,
@@ -16,6 +18,7 @@ export interface ClosingDependencies {
   logger: Logger;
   /** How many auctions one transaction closes at most. */
   batchSize: number;
+  cache: StateCache;
 }
 
 export interface ClosingService {
@@ -46,7 +49,7 @@ export function decideResult(auction: AuctionState): AuctionResult {
 }
 
 export function createClosingService(deps: ClosingDependencies): ClosingService {
-  const { pool, publish, logger, batchSize } = deps;
+  const { pool, publish, logger, batchSize, cache } = deps;
 
   return {
     async closeExpiredAuctions() {
@@ -80,6 +83,7 @@ export function createClosingService(deps: ClosingDependencies): ClosingService 
       // After COMMIT. A failed publish is logged and the auction stays closed; the lost event is a
       // known limitation without an outbox (docs/events.md §7).
       for (const payload of events) {
+        await refreshCachedState(pool, cache, payload.auctionId);
         logger.info(
           {
             auctionId: payload.auctionId,

@@ -8,6 +8,8 @@ import {
 } from '@auction/shared-common';
 import type { Pool } from 'pg';
 import type { PaymentClient } from '../clients/payment.client';
+import type { StateCache } from '../repositories/state-cache';
+import { refreshCachedState } from './cache-refresh';
 import { withTransaction } from '../repositories/database';
 import {
   currentTime,
@@ -32,6 +34,7 @@ export interface BiddingDependencies {
   logger: Logger;
   antiSniping: AntiSnipingRules;
   payment: PaymentClient;
+  cache: StateCache;
 }
 
 export interface PlaceBidResult {
@@ -107,7 +110,7 @@ export function applyAntiSniping(
 }
 
 export function createBiddingService(deps: BiddingDependencies): BiddingService {
-  const { pool, publish, logger, antiSniping, payment } = deps;
+  const { pool, publish, logger, antiSniping, payment, cache } = deps;
 
   return {
     async placeBid(bidderId, auctionId, amountCents) {
@@ -158,6 +161,8 @@ export function createBiddingService(deps: BiddingDependencies): BiddingService 
       });
 
       const { bid, auction } = result;
+      // Write-through after COMMIT: readers see the new highest bid without asking the database.
+      await cache.put(auction);
       logger.info(
         { auctionId, bidId: bid.id, bidderId, amountCents, sequence: bid.sequence, extended },
         'bid accepted',
@@ -213,6 +218,7 @@ export function createBiddingService(deps: BiddingDependencies): BiddingService 
         }
         await markCancelled(tx, auctionId, cancelledBy, now);
       });
+      await refreshCachedState(pool, cache, auctionId);
       logger.info({ auctionId, cancelledBy, isAdmin }, 'auction cancelled');
     },
   };
