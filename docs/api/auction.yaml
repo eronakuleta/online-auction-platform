@@ -1,0 +1,446 @@
+openapi: 3.0.3
+info:
+  title: auction-service
+  version: 1.0.0
+  description: |
+    Auction catalog, lifecycle and categories (FR-04, FR-05). Owner: Erona.
+    Persisted states: DRAFT, PUBLISHED, CANCELLED, CLOSED_SOLD, CLOSED_NO_SALE, SETTLED,
+    PAYMENT_FAILED. "Upcoming" and "live" are derived (`phase`). Money is integer cents with a
+    `currency`. Bids, live state and the SSE stream belong to bidding-service (B-22).
+    Decisions referenced as Qn are in docs/requirements.md section 10.
+servers:
+  - url: https://localhost:8443/api/v1
+    description: Through the gateway (self-signed certificate locally)
+tags:
+  - name: Catalog
+  - name: Seller
+  - name: Categories
+paths:
+  /auctions:
+    get:
+      tags: [Catalog]
+      summary: Search and browse the public catalog
+      description: |
+        Drafts are never listed. A token is optional; with one, the caller's own auctions include
+        their reserve price (Q8). An invalid token is a 401, not "visitor".
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - name: q
+          in: query
+          description: Full-text search (quotes, OR and -word are understood)
+          schema: { type: string, minLength: 1, maxLength: 100 }
+        - name: categoryId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PUBLISHED, CANCELLED, CLOSED_SOLD, CLOSED_NO_SALE, SETTLED, PAYMENT_FAILED]
+            default: PUBLISHED
+        - name: minPriceCents
+          in: query
+          description: On the starting price, inclusive
+          schema: { type: integer, minimum: 0 }
+        - name: maxPriceCents
+          in: query
+          description: Inclusive; must not be lower than minPriceCents
+          schema: { type: integer, minimum: 0 }
+        - name: sort
+          in: query
+          description: Default `relevance` with `q`, otherwise `newest`. `relevance` needs `q`.
+          schema:
+            type: string
+            enum: [newest, ending_soon, price_asc, price_desc, relevance]
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          $ref: '#/components/responses/AuctionPage'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Seller]
+      summary: Create an auction as a DRAFT (SELLER)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewAuction' }
+      responses:
+        '201':
+          description: Created. `Location` points to the new auction.
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Auction' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /auctions/mine:
+    get:
+      tags: [Seller]
+      summary: The caller's own auctions in every state, drafts included (SELLER)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/AuctionStatus' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          $ref: '#/components/responses/AuctionPage'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /auctions/{id}:
+    parameters:
+      - $ref: '#/components/parameters/AuctionId'
+    get:
+      tags: [Catalog]
+      summary: One auction
+      description: A draft is visible only to its seller and admins; everyone else gets 404 (Q4).
+      security: [{}, { bearerAuth: [] }]
+      responses:
+        '200':
+          description: The auction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Auction' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Seller]
+      summary: Edit a draft (its SELLER). Any subset of the fields
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AuctionChanges' }
+      responses:
+        '200':
+          description: The updated draft
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Auction' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`AUCTION_NOT_DRAFT`: only drafts can be edited'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      tags: [Seller]
+      summary: Delete a draft (its SELLER)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Deleted }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`AUCTION_NOT_DRAFT`: a published auction is cancelled instead'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /auctions/{id}/publish:
+    parameters:
+      - $ref: '#/components/parameters/AuctionId'
+    post:
+      tags: [Seller]
+      summary: DRAFT to PUBLISHED (its SELLER). Publishes `auction.published` after the commit
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The published auction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Auction' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`AUCTION_NOT_DRAFT`, or `AUCTION_ALREADY_ENDED` if the end time has passed (Q7)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /auctions/{id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/AuctionId'
+    post:
+      tags: [Seller]
+      summary: Cancel (its SELLER before the first bid, or an ADMIN until it closes)
+      description: |
+        For a published auction, bidding-service decides first (2 s timeout,
+        docs/events.md section 8). Publishes `auction.cancelled` for a published auction.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The cancelled auction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Auction' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: |
+            `AUCTION_HAS_BIDS`, `AUCTION_CLOSED`, `AUCTION_NOT_CANCELLABLE` or
+            `AUCTION_STATE_CHANGED` (it changed while cancelling)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /categories:
+    get:
+      tags: [Categories]
+      summary: All categories, alphabetical (public)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 100 }
+      responses:
+        '200':
+          description: One page of categories
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageInfo'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Categories]
+      summary: Create a category (ADMIN)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 60, description: Trimmed }
+      responses:
+        '201':
+          description: Created. `Location` points to the new category.
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: '`CATEGORY_EXISTS`: the name exists, ignoring case'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /categories/{id}:
+    get:
+      tags: [Categories]
+      summary: One category (public)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The category
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Size:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    AuctionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    AuctionStatus:
+      type: string
+      enum: [DRAFT, PUBLISHED, CANCELLED, CLOSED_SOLD, CLOSED_NO_SALE, SETTLED, PAYMENT_FAILED]
+    NewAuction:
+      type: object
+      additionalProperties: false
+      required: [categoryId, title, startingPriceCents, minIncrementCents, startsAt, endsAt]
+      properties: &auctionFields
+        categoryId: { type: string, format: uuid }
+        title: { type: string, minLength: 3, maxLength: 120, description: Trimmed }
+        description: { type: string, maxLength: 5000, default: '' }
+        startingPriceCents: { type: integer, minimum: 1 }
+        minIncrementCents: { type: integer, minimum: 1 }
+        reservePriceCents: { type: integer, minimum: 1, nullable: true, default: null }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time, description: Must be after startsAt }
+        imageUrls:
+          type: array
+          maxItems: 10
+          default: []
+          items: { type: string, pattern: '^https?://\S+$', maxLength: 2048 }
+    AuctionChanges:
+      description: Any subset of the fields of a new auction, at least one. null removes the reserve price.
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties: *auctionFields
+    Auction:
+      type: object
+      required:
+        - id
+        - sellerId
+        - categoryId
+        - title
+        - description
+        - currency
+        - startingPriceCents
+        - minIncrementCents
+        - startsAt
+        - endsAt
+        - status
+        - phase
+        - winnerId
+        - finalPriceCents
+        - imageUrls
+        - publishedAt
+        - closedAt
+        - createdAt
+        - updatedAt
+      properties:
+        id: { type: string, format: uuid }
+        sellerId: { type: string, format: uuid }
+        categoryId: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        currency: { type: string, example: EUR }
+        startingPriceCents: { type: integer }
+        minIncrementCents: { type: integer }
+        reservePriceCents:
+          type: integer
+          nullable: true
+          description: Present only for the seller and admins (Q8)
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time, description: Moved later by anti-sniping }
+        status: { $ref: '#/components/schemas/AuctionStatus' }
+        phase:
+          type: string
+          enum: [UPCOMING, LIVE, ENDED]
+          nullable: true
+          description: Derived from the times while PUBLISHED, otherwise null
+        winnerId: { type: string, format: uuid, nullable: true }
+        finalPriceCents: { type: integer, nullable: true }
+        imageUrls:
+          type: array
+          items: { type: string }
+        publishedAt: { type: string, format: date-time, nullable: true }
+        closedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Category:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        createdAt: { type: string, format: date-time }
+    PageInfo:
+      type: object
+      required: [page, size, total]
+      properties:
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  path: { type: string }
+                  message: { type: string }
+            requestId: { type: string }
+  responses:
+    AuctionPage:
+      description: One page of auctions
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/PageInfo'
+              - type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Auction' }
+    ValidationError:
+      description: '`VALIDATION_ERROR`: invalid or unknown fields, listed in `details`'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: '`UNAUTHORIZED`: missing or invalid token'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: '`FORBIDDEN`: wrong role, or not the seller of a published auction'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: "`NOT_FOUND`, also for someone else's draft (Q4)"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unavailable:
+      description: '`SERVICE_UNAVAILABLE`: bidding-service did not answer within 2 s'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

@@ -1,0 +1,194 @@
+openapi: 3.0.3
+info:
+  title: payment-service
+  version: 1.0.0
+  description: |
+    Wallets, simulated deposits and the funds check (FR-11). Owner: Erona. Settlement after
+    `auction.closed` and `GET /payments` for admins come with task A-18 and are added here then.
+    Money is integer cents. Every balance change writes a ledger row with the balance after it.
+    Decisions referenced as Qn are in docs/requirements.md section 10.
+servers:
+  - url: https://localhost:8443/api/v1
+    description: Through the gateway (self-signed certificate locally)
+  - url: http://payment-service:3004
+    description: Inside the Docker network only, for /internal endpoints (never routed by the gateway)
+tags:
+  - name: Wallet
+  - name: Internal
+paths:
+  /wallet/me:
+    get:
+      tags: [Wallet]
+      summary: The caller's wallet (BIDDER or SELLER, Q13)
+      description: Created empty on first use if `user.registered` never arrived (Q11).
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The wallet
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Wallet' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /wallet/deposit:
+    post:
+      tags: [Wallet]
+      summary: Add simulated money (BIDDER or SELLER). 1 cent to 10,000.00 per deposit (Q12)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [amountCents]
+              properties:
+                amountCents: { type: integer, minimum: 1, maximum: 1000000 }
+      responses:
+        '200':
+          description: The new balance and the ledger row (a deposit is an action, so 200)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [wallet, transaction]
+                properties:
+                  wallet: { $ref: '#/components/schemas/Wallet' }
+                  transaction: { $ref: '#/components/schemas/Transaction' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /wallet/transactions:
+    get:
+      tags: [Wallet]
+      summary: The caller's ledger, newest first (BIDDER or SELLER)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: One page of ledger rows
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page, size, total]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Transaction' }
+                  page: { type: integer }
+                  size: { type: integer }
+                  total: { type: integer }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /internal/funds-check:
+    get:
+      tags: [Internal]
+      summary: Does the user's balance cover an amount? (for bidding-service, Q10)
+      description: |
+        Server `http://payment-service:3004` only: the path is outside `/api/v1` and the gateway
+        refuses `/internal`. No token, the Docker network is the boundary. It only reads; funds are
+        not held (known limitation). Bidding turns `sufficient: false` into its own 409.
+      servers:
+        - url: http://payment-service:3004
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: amountCents
+          in: query
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: The answer
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [userId, amountCents, balanceCents, sufficient]
+                properties:
+                  userId: { type: string, format: uuid }
+                  amountCents: { type: integer }
+                  balanceCents: { type: integer }
+                  sufficient: { type: boolean }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404':
+          description: '`WALLET_NOT_FOUND`: the user has no wallet (none is created here)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Wallet:
+      type: object
+      required: [id, userId, balanceCents, currency, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        balanceCents: { type: integer, minimum: 0 }
+        currency: { type: string, example: EUR }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Transaction:
+      type: object
+      required: [id, type, amountCents, balanceAfterCents, settlementId, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        type:
+          type: string
+          enum: [DEPOSIT, SETTLEMENT_DEBIT, SETTLEMENT_CREDIT, PLATFORM_FEE]
+        amountCents:
+          type: integer
+          description: Signed; negative for a debit
+        balanceAfterCents: { type: integer, minimum: 0 }
+        settlementId: { type: string, format: uuid, nullable: true }
+        createdAt: { type: string, format: date-time }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  path: { type: string }
+                  message: { type: string }
+            requestId: { type: string }
+  responses:
+    ValidationError:
+      description: '`VALIDATION_ERROR`: invalid or unknown fields, listed in `details`'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: '`UNAUTHORIZED`: missing or invalid token'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: '`FORBIDDEN`: wallets belong to BIDDER and SELLER accounts (Q13)'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
