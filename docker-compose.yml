@@ -221,6 +221,21 @@ services:
     networks: [backend]
     restart: unless-stopped
 
+  # API documentation (task A-24): docker compose --profile docs up -d swagger-ui, then open
+  # http://localhost:8081. Reads the OpenAPI files in docs/api directly, so it always shows the
+  # committed specs. No validator: the specs never leave this machine.
+  swagger-ui:
+    image: swaggerapi/swagger-ui:v5.17.14
+    profiles: [docs]
+    environment:
+      URLS: '[{"url":"specs/auth.yaml","name":"auth-service"},{"url":"specs/auction.yaml","name":"auction-service"},{"url":"specs/payment.yaml","name":"payment-service"}]'
+      VALIDATOR_URL: none
+    volumes:
+      - ./docs/api:/usr/share/nginx/html/specs:ro
+    ports:
+      - '127.0.0.1:${SWAGGER_UI_HOST_PORT:-8081}:8080'
+    restart: unless-stopped
+
 networks:
   # Internal network shared by infrastructure, services and the gateway. Only the gateway publishes
   # an API port to the host.

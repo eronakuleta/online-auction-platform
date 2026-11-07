@@ -1,0 +1,351 @@
+openapi: 3.0.3
+info:
+  title: auth-service
+  version: 1.0.0
+  description: |
+    Users, roles and sessions (FR-01 to FR-03). Owner: Erona.
+    Access tokens are RS256 JWTs valid for 15 minutes; refresh tokens rotate on every use, and
+    reusing an old one revokes the whole session (docs/requirements.md). Errors always use the
+    standard error body. Decisions referenced as Qn are in docs/requirements.md section 10.
+servers:
+  - url: https://localhost:8443/api/v1
+    description: Through the gateway (self-signed certificate locally)
+tags:
+  - name: Auth
+  - name: Profile
+  - name: Admin
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new account (always BIDDER only, Q1)
+      description: Publishes `user.registered` after the commit. A `roles` field is refused.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, password, displayName]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, minLength: 8, maxLength: 128 }
+                displayName:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: Trimmed; no control characters.
+      responses:
+        '201':
+          description: Created. `Location` is `/api/v1/users/me`.
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409':
+          description: '`EMAIL_TAKEN`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in and receive a token pair
+      description: |
+        Every failure is the same `401 INVALID_CREDENTIALS`, also for a banned user and for an
+        account locked after 5 failed attempts (5 minutes, Q9).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 1, maxLength: 128 }
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/TokenPair'
+                  - type: object
+                    required: [user]
+                    properties:
+                      user: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Exchange a refresh token for a new pair (rotation)
+      description: The old refresh token stops working. Presenting a used one revokes the session.
+      requestBody:
+        $ref: '#/components/requestBodies/RefreshToken'
+      responses:
+        '200':
+          description: New token pair, with the user's current roles in the access token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: End this session (revokes the refresh token and its later rotations)
+      requestBody:
+        $ref: '#/components/requestBodies/RefreshToken'
+      responses:
+        '204':
+          description: Logged out. Also for an unknown token, so nothing is revealed.
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /users/me:
+    get:
+      tags: [Profile]
+      summary: The caller's own profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The caller
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Profile]
+      summary: Change the display name (the only changeable field, Q2)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [displayName]
+              properties:
+                displayName: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /users:
+    get:
+      tags: [Admin]
+      summary: List users (ADMIN)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: status
+          in: query
+          schema: { type: string, enum: [ACTIVE, BANNED] }
+      responses:
+        '200':
+          description: One page of users
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageInfo'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /users/{id}/status:
+    patch:
+      tags: [Admin]
+      summary: Ban or unban a user (ADMIN). Banning ends all their sessions. Admins cannot be changed (Q6)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status: { type: string, enum: [ACTIVE, BANNED] }
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`ADMIN_ACCOUNT_PROTECTED`: admin accounts are seeded and cannot be changed (Q6)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /users/{id}/roles:
+    patch:
+      tags: [Admin]
+      summary: Replace a user's roles (ADMIN). Only BIDDER and SELLER can be given (Q1, Q6)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [roles]
+              properties:
+                roles:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items: { type: string, enum: [BIDDER, SELLER] }
+      responses:
+        '200':
+          description: Updated user. The new roles reach the token at its next refresh.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: '`ADMIN_ACCOUNT_PROTECTED`: admin accounts are seeded and cannot be changed (Q6)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Size:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  requestBodies:
+    RefreshToken:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [refreshToken]
+            properties:
+              refreshToken: { type: string, minLength: 1, maxLength: 256 }
+  schemas:
+    User:
+      type: object
+      required: [id, email, displayName, status, roles, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        displayName: { type: string }
+        status: { type: string, enum: [ACTIVE, BANNED] }
+        roles:
+          type: array
+          items: { type: string, enum: [BIDDER, SELLER, ADMIN] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TokenPair:
+      type: object
+      required: [accessToken, refreshToken, tokenType, expiresIn]
+      properties:
+        accessToken: { type: string, description: RS256 JWT }
+        refreshToken: { type: string, description: 256 random bits, base64url }
+        tokenType: { type: string, enum: [Bearer] }
+        expiresIn: { type: integer, description: Seconds until the access token expires }
+    PageInfo:
+      type: object
+      required: [page, size, total]
+      properties:
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details, requestId]
+          properties:
+            code: { type: string, example: VALIDATION_ERROR }
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  path: { type: string }
+                  message: { type: string }
+            requestId: { type: string, description: Same as the X-Request-Id header }
+  responses:
+    ValidationError:
+      description: '`VALIDATION_ERROR`: invalid or unknown fields, listed in `details`'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: '`UNAUTHORIZED` (missing or invalid token) or `INVALID_CREDENTIALS`'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: '`FORBIDDEN`: the caller does not have the required role'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: '`NOT_FOUND`'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RateLimited:
+      description: '`RATE_LIMITED` by the gateway, with a `Retry-After` header'
+      headers:
+        Retry-After: { schema: { type: integer } }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
