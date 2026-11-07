@@ -2,6 +2,7 @@
 import { createTokenVerifier, loadPublicKey } from '@auction/shared-auth';
 import { connectEventBus, createLogger } from '@auction/shared-common';
 import { createApp } from './app';
+import { createAuctionEventHandlers } from './events/auction-events.consumer';
 import { startClosingWorker } from './jobs/closing-worker';
 import { loadConfig } from './config';
 import { createPool } from './repositories/database';
@@ -21,7 +22,8 @@ async function main(): Promise<void> {
     issuer: config.jwt.issuer,
     audience: config.jwt.audience,
   });
-  // Publishes bid.placed, auction.extended and auction.closed. Consuming auction.published/cancelled comes with B-05.
+  // Publishes bid.placed, auction.extended and auction.closed; consumes auction.published and
+  // auction.cancelled to keep the local snapshot (B-05).
   const bus = await connectEventBus({
     url: config.events.rabbitmqUrl,
     exchange: config.events.exchange,
@@ -33,6 +35,8 @@ async function main(): Promise<void> {
     logger,
     antiSniping: config.antiSniping,
   });
+
+  await bus.subscribe('bidding-service', createAuctionEventHandlers({ pool, logger }));
 
   const closingWorker = startClosingWorker({
     closingService: createClosingService({

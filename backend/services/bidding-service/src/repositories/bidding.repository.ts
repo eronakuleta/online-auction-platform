@@ -239,3 +239,84 @@ export async function markClosed(
   );
   return result.rows[0]!.closed_at;
 }
+
+/**
+ * Records that an event was handled, in the same transaction as its effect (docs/events.md §7).
+ * Returns false if it was already recorded, so a redelivered event is skipped.
+ */
+export async function markEventProcessed(
+  tx: Queryable,
+  eventId: string,
+  eventType: string,
+): Promise<boolean> {
+  const result = await tx.query(
+    `INSERT INTO processed_events (event_id, event_type) VALUES ($1, $2)
+     ON CONFLICT (event_id) DO NOTHING`,
+    [eventId, eventType],
+  );
+  return result.rowCount === 1;
+}
+
+/**
+ * Stores the snapshot from auction.published. ON CONFLICT DO NOTHING: a row that already exists,
+ * including a CANCELLED placeholder from an earlier auction.cancelled, is never reopened.
+ * Returns false if the row already existed.
+ */
+export async function insertSnapshot(
+  tx: Queryable,
+  snapshot: {
+    auctionId: string;
+    sellerId: string;
+    title: string;
+    currency: string;
+    startingPriceCents: number;
+    minIncrementCents: number;
+    reservePriceCents: number | null;
+    startsAt: string;
+    endsAt: string;
+  },
+): Promise<boolean> {
+  const result = await tx.query(
+    `INSERT INTO auction_state (auction_id, seller_id, title, currency, starting_price_cents,
+       min_increment_cents, reserve_price_cents, starts_at, ends_at, original_ends_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
+     ON CONFLICT (auction_id) DO NOTHING`,
+    [
+      snapshot.auctionId,
+      snapshot.sellerId,
+      snapshot.title,
+      snapshot.currency,
+      snapshot.startingPriceCents,
+      snapshot.minIncrementCents,
+      snapshot.reservePriceCents,
+      snapshot.startsAt,
+      snapshot.endsAt,
+    ],
+  );
+  return result.rowCount === 1;
+}
+
+/**
+ * Applies auction.cancelled. An unknown auction gets a CANCELLED placeholder, so a late
+ * auction.published cannot open it (docs/events.md §7). An open auction is cancelled; one that is
+ * already cancelled or closed is left as it is. Returns the resulting status.
+ */
+export async function cancelFromEvent(
+  tx: Queryable,
+  cancel: { auctionId: string; sellerId: string; title: string; cancelledBy: string },
+): Promise<string> {
+  await tx.query(
+    `INSERT INTO auction_state (auction_id, seller_id, title, status, cancelled_by, cancelled_at)
+     VALUES ($1, $2, $3, 'CANCELLED', $4, now())
+     ON CONFLICT (auction_id) DO UPDATE
+       SET status = 'CANCELLED', cancelled_by = EXCLUDED.cancelled_by, cancelled_at = now(),
+           version = auction_state.version + 1, updated_at = now()
+       WHERE auction_state.status = 'OPEN'`,
+    [cancel.auctionId, cancel.sellerId, cancel.title, cancel.cancelledBy],
+  );
+  const result = await tx.query<{ status: string }>(
+    'SELECT status FROM auction_state WHERE auction_id = $1',
+    [cancel.auctionId],
+  );
+  return result.rows[0]!.status;
+}

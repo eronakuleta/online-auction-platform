@@ -57,3 +57,11 @@ How to explain each of Anesa's tasks (`B-xx`) at the defense. Short, in our own 
 - **It cannot overlap a last-second bid.** place-bid and the worker lock the same row. If a bid holds the lock, the worker skips that auction for one round; the bid then sees `now >= ends_at` is not yet true or gets `AUCTION_CLOSED`, never a bid on a closed auction.
 - **Result rules.** No bids: `NO_SALE` with `NO_BIDS`. Highest bid below the reserve: `NO_SALE` with `RESERVE_NOT_MET`. Otherwise `SOLD` to the highest bidder; equal to the reserve counts as met. `losingBidderIds` lists everyone who bid and did not win, so notification-service can tell them.
 - **Failure handling.** If a round fails, its transaction rolls back and the next round tries again. If publishing fails after the commit, the auction stays closed and the event is lost; that is the known limitation without an outbox (`docs/events.md` §7).
+
+## B-05 Auction snapshot from events
+
+- **Why bidding keeps its own copy.** Bidding never reads auction_db (one database per service). It learns everything it needs (seller, prices, times) from `auction.published` and stores it in `auction_state`, so place-bid works even if auction-service is down.
+- **Duplicates change nothing.** Delivery is at-least-once. Each handler records the `eventId` in `processed_events` in the same transaction as its effect; a redelivered event finds its ID there and does nothing.
+- **Out-of-order events.** If `auction.cancelled` overtakes `auction.published`, a `CANCELLED` placeholder is stored. The late publish uses `ON CONFLICT DO NOTHING`, so it can never reopen a cancelled auction.
+- **A cancel never overrides a result.** The cancel only changes an `OPEN` row. An auction that is already closed or cancelled (for example by the internal cancel call) is left as it is.
+- **Bad data is not swallowed.** A snapshot that breaks a database rule makes the handler throw, so the shared consumer retries it and finally sends it to the dead-letter queue, where a person can look at it.
