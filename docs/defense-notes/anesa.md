@@ -113,3 +113,11 @@ How to explain each of Anesa's tasks (`B-xx`) at the defense. Short, in our own 
 - **Marking twice is harmless.** `COALESCE(read_at, now())` keeps the first read time, and read-all only touches rows that are still unread, so repeating either changes nothing and never rewrites history.
 - **The bell is cheap.** The unread count uses a partial index on unread rows only, so it stays fast however many read notifications pile up. The list pages by `created_at, id`, so notifications created in the same instant never skip or repeat across pages.
 - **Any logged-in role may use it.** The permission matrix says BIDDER, SELLER and ADMIN read their own notifications, so the routes check a login but no role. Unknown paths stay a normal 404 instead of 401, because the login check is on each route, not on the whole router.
+
+## B-16 notification-service test evidence
+
+- **What the 80 tests cover.** The notification rules without a database (who is told what), the table's own constraints, the real event handlers on a real Postgres (duplicates, parallel delivery, a retry after a half-finished attempt), every endpoint (success, 400, 401, 403, 404 and edge cases) and the service basics (config, health, headers, limits).
+- **The evidence is generated, not typed.** `docs/test-evidence/notification-service.md` comes from `jest --json` through the same generator as the other services, so every row is a test that really ran and the Actual column cannot be invented.
+- **Tests that guard the important rules.** I broke seven rules on purpose (idempotency, who is outbid, the admin-cancel rule, and the four 'you can only see your own' filters). Each break made a test fail, which shows the tests would notice a real bug.
+- **Failure behaviour is tested, not assumed.** A dead database gives a plain 503 from `/health` without the connection details, a crashed query gives a plain 500 without a stack trace, and an oversized or malformed body is refused before it reaches any route.
+- **Integration tests use a real Postgres.** Each test file builds a throwaway database from the same SQL files as production (as the project's rules require), so a constraint or index mistake shows up in the tests.
