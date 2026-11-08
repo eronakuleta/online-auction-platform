@@ -97,7 +97,13 @@ async function withAdminClient(work: (client: Client) => Promise<unknown>): Prom
 }
 
 export async function createTestContext(
-  options: { cache?: StateCache; redisUrl?: string; heartbeatMs?: number } = {},
+  options: {
+    cache?: StateCache;
+    redisUrl?: string;
+    heartbeatMs?: number;
+    /** How long a bid waits for the funds check. Short by default so the timeout tests are quick. */
+    fundsTimeoutMs?: number;
+  } = {},
 ): Promise<TestContext> {
   const cache = options.cache ?? createNoStateCache();
   const database = `bidding_test_${randomBytes(6).toString('hex')}`;
@@ -152,7 +158,7 @@ export async function createTestContext(
   const verifyToken = createTokenVerifier({ publicKey, issuer: ISSUER, audience: AUDIENCE });
   const payment = createPaymentClient({
     baseUrl: `http://127.0.0.1:${port}`,
-    timeoutMs: 300,
+    timeoutMs: options.fundsTimeoutMs ?? 300,
     logger,
   });
   // Live updates (B-12). With a Redis URL each replica publishes through Redis and has its own
