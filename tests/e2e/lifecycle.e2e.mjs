@@ -183,5 +183,5 @@ test('register, publish, bid, close, settle: a sale and a reserve not met, end t
   );
 });
 
-// 6. Notify: notification-service (B-14) is not built yet. Add the check when it is.
-test.todo('the winner, the losing bidder and the seller receive notifications (B-14)');
+// 6. Notify: notification-service stores them (B-14); the check reads them through the API (B-15).
+test.todo('the winner, the losing bidder and the seller receive notifications (B-15)');

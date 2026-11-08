@@ -92,6 +92,9 @@ jobs:
       - name: Build the payment-service image
         run: docker build -f backend/services/payment-service/Dockerfile .
 
+      - name: Build the notification-service image
+        run: docker build -f backend/services/notification-service/Dockerfile .
+
   database:
     name: Database schemas and seeds
     runs-on: ubuntu-latest

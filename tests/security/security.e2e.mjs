@@ -4,6 +4,7 @@
 // CORS; security headers. Uses the seeded demo accounts and the local JWT keys in secrets/.
 // No packages needed: tokens are built with node:crypto, so CI can run it without npm install.
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { createHmac, createSign, generateKeyPairSync, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -329,11 +330,29 @@ describe('security headers (helmet in each service)', () => {
     }
   });
 
-  test('a 500-class error never leaks a stack trace', async () => {
-    // notification-service does not exist yet (B-14), so the gateway answers 503 here. bidding
-    // (B-06) and payment (A-17) now exist, so their paths no longer give a 500-class answer.
-    const response = await call('/notifications');
-    assert.equal(response.status, 503);
-    assert.doesNotMatch(JSON.stringify(response.body), /at .*\(|node_modules|stack/i);
+  test('a 500-class error never leaks a stack trace', async (t) => {
+    // Every service exists now, so no path gives a 500-class answer by itself. The test makes one:
+    // it stops notification-service, checks what the gateway answers for its path, and starts it
+    // again. It needs the Docker CLI and runs from the repository root, as in CI.
+    const docker = process.env.DOCKER_BIN ?? 'docker';
+    const compose = (...args) => execFileSync(docker, ['compose', ...args], { stdio: 'pipe' });
+    try {
+      compose('stop', 'notification-service');
+    } catch {
+      t.skip('the Docker CLI is not available, so the service cannot be stopped');
+      return;
+    }
+    try {
+      const response = await call('/notifications');
+      assert.equal(response.status, 503);
+      assert.equal(response.body.error.code, 'SERVICE_UNAVAILABLE');
+      assert.doesNotMatch(JSON.stringify(response.body), /at .*\(|node_modules|stack/i);
+    } finally {
+      compose('start', 'notification-service');
+      // Wait until the service answers again, so the next tests find it up.
+      for (let i = 0; i < 60 && (await call('/notifications')).status === 503; i += 1) {
+        await sleep(500);
+      }
+    }
   });
 });

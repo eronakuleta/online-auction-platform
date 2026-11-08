@@ -147,10 +147,10 @@ test('routes the wallet to payment-service', async () => {
   assert.equal(anonymous.body.error.code, 'UNAUTHORIZED');
 });
 
-test('routes notification paths, which answer 503 until that service exists', async () => {
-  for (const path of ['/notifications']) {
-    assertGatewayError(await call(path), 503, 'SERVICE_UNAVAILABLE');
-  }
+test('routes notification paths to notification-service (B-14)', async () => {
+  // The service has no endpoints before B-15, so it answers its own 404 in the standard error
+  // format. A 503 here would mean the gateway cannot reach it.
+  assertGatewayError(await call('/notifications'), 404, 'NOT_FOUND');
 });
 
 test('blocks /internal in every spelling, with the same 404 as an unknown route', async () => {

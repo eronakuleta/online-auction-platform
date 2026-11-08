@@ -257,6 +257,15 @@ row lock on the auction:
 - **Endpoints:** `GET /notifications`, `GET /notifications/unread-count`,
   `PATCH /notifications/:id/read`, `POST /notifications/read-all`.
 - Email simulation through MailHog is stretch.
+- **Who is told what (decision Q14):**
+  - `WELCOME` to a new user.
+  - `OUTBID` to the previous highest bidder only; nobody on a first bid.
+  - When an auction closes: `AUCTION_WON` to the winner, `AUCTION_LOST` to every other bidder and
+    `ITEM_SOLD` to the seller. On no sale: `AUCTION_LOST` to every bidder and `NO_SALE` to the seller.
+  - `AUCTION_CANCELLED` to the seller, only when an admin cancelled it.
+  - `PAYMENT_COMPLETED` and `PAYMENT_FAILED` to both the winner and the seller.
+- One event never sends two notifications to the same person (`UNIQUE (event_id, user_id)`), which
+  also makes the consumer idempotent.
 
 ### FR-14 Watchlist (stretch)
 
@@ -467,6 +476,7 @@ them starts, and this document is updated.
 | Q11 | How does a user get a wallet?                                                | **Decided 06.11.2026:** `user.registered` creates an empty one (idempotent through `UNIQUE (user_id)`). If the event was lost, `GET /wallet/me`, deposit and history create it on first use. The funds check never creates one                                                                                                                                             | Erona                 | A-17       |
 | Q12 | How much can one simulated deposit be?                                       | **Decided 06.11.2026:** 1 cent to 10,000.00 (`amountCents` 1 to 1,000,000); anything else is `400`                                                                                                                                                                                                                                                                         | Erona                 | A-17       |
 | Q13 | Who may use the wallet endpoints?                                            | **Decided 06.11.2026:** `BIDDER` or `SELLER`. An admin-only account gets `403`; admins see money through `GET /payments` (A-18)                                                                                                                                                                                                                                            | Erona                 | A-17       |
+| Q14 | Who is notified of what?                                                     | **Decided 08.11.2026 by Anesa:** the rules under FR-13. `NO_SALE` and `AUCTION_CANCELLED` are added to its seven types                                                                                                                                                                                                                                                     | Anesa                 | B-14, B-15 |
 
 - Design proposals 1 to 4 in `docs/design-proposals.md` are accepted (Anesa, 02.11.2026) and
   recorded in `docs/events.md`. The SSE part of Q3 is answered by proposal 1; bid history and live
