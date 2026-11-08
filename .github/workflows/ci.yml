@@ -177,6 +177,13 @@ jobs:
           NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
         run: node --test tests/e2e/settlement.e2e.mjs
 
+      # The whole lifecycle with nothing faked: publish, bid with the funds check, the closing worker
+      # ends the auctions about 45 s later, settlement, SETTLED and CLOSED_NO_SALE (task A-28).
+      - name: Lifecycle test
+        env:
+          NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
+        run: node --test tests/e2e/lifecycle.e2e.mjs
+
       - name: Show logs on failure
         if: failure()
         run: docker compose logs --no-color --tail 100

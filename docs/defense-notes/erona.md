@@ -220,3 +220,10 @@ How to explain each of Erona's tasks (`A-xx`) at the defense. Short, in our own 
 - **The deck** (12 slides: scope and decisions, architecture, events, data, auth, auction, payment, security, testing, frontend, honest limits) is at https://claude.ai/artifact/C79jdRJn9zVonUeGP6mE77 and downloads as PowerPoint or PDF. Every number on it comes from the repository or a CI run; speaker notes hold the details to say aloud. It is private until shared from its Share menu.
 - **The demo script** is `docs/defense-notes/erona-demo.md`: the UI, a real bid through the gateway, closing the auction early with one SQL update in bidding's database, and the settlement across three services ending in `SETTLED`. It was rehearsed on a fresh stack; the expected numbers in it are the ones that run produced.
 - **Live-change drills** are in the same file: the change, where it goes, and which test proves it (fee, deposit limit, login lock, a category limit with a new SQL file, a new field with the OpenAPI test, a forbidden state change). Practise each once before the defense.
+
+## A-28 Full lifecycle test
+
+- **Nothing is faked.** `tests/e2e/lifecycle.e2e.mjs` registers a new user, a seller publishes two NEW auctions that end about 45 seconds later, bidding-service learns them from `auction.published` (Anesa's B-05), bids pass the real funds check (B-10, my Q10 endpoint), the closing worker closes them on its own, payment-service settles and auction-service shows `SETTLED` and `CLOSED_NO_SALE`.
+- **Rules across services, checked on the way.** The seller cannot bid on their own auction (403), a bid above the balance is refused (409 `INSUFFICIENT_FUNDS`), and the seller cannot cancel after the first bid (409 `AUCTION_HAS_BIDS`, decided by bidding under its row lock).
+- **The money adds up.** The winner pays 25.00, the seller gets 23.75, the platform 1.25, the losing bidder and the no-sale auction cost nothing, and an auction without a sale is never settled. It takes about 46 seconds and runs in CI.
+- **Open part.** Notifications (Anesa's B-14) are not built yet; the test marks that step as a todo and gets the check when the service exists.
