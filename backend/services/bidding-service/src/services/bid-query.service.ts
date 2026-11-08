@@ -3,6 +3,7 @@
 // (docs/events.md §10); a user's own bids need a login. No Express and no SQL here.
 import { NotFoundError } from '@auction/shared-common';
 import type { Pool } from 'pg';
+import type { StateCache } from '../repositories/state-cache';
 import {
   findAuctionState,
   listBidsOfAuction,
@@ -26,18 +27,32 @@ export interface BidQueryService {
 
 const offsetOf = ({ page, size }: Pagination) => (page - 1) * size;
 
-export function createBidQueryService(pool: Pool): BidQueryService {
+const auctionNotFound = () => new NotFoundError('Auction not found', 'AUCTION_NOT_FOUND');
+
+export function createBidQueryService(pool: Pool, cache: StateCache): BidQueryService {
   /** A placeholder row (cancelled before it was published) has no data to show, like place-bid. */
   const requireKnownAuction = async (auctionId: string): Promise<AuctionState> => {
     const auction = await findAuctionState(pool, auctionId);
     if (auction === null || auction.startingPriceCents === null) {
-      throw new NotFoundError('Auction not found', 'AUCTION_NOT_FOUND');
+      throw auctionNotFound();
     }
     return auction;
   };
 
   return {
-    getState: requireKnownAuction,
+    // Cache-aside (B-09): Redis first; on a miss the database, then fill the cache for the next one.
+    async getState(auctionId) {
+      const cached = await cache.get(auctionId);
+      if (cached !== null) {
+        if (cached.startingPriceCents === null) {
+          throw auctionNotFound();
+        }
+        return cached;
+      }
+      const auction = await requireKnownAuction(auctionId);
+      await cache.put(auction);
+      return auction;
+    },
 
     async listBids(auctionId, pagination) {
       await requireKnownAuction(auctionId);

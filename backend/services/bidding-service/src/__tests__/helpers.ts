@@ -3,20 +3,25 @@
 // server standing in for payment-service's funds check.
 import { generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
-import { createServer } from 'node:http';
+import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { createTokenVerifier, type Role } from '@auction/shared-auth';
 import { createEvent, createLogger, type DomainEvent, type Publish } from '@auction/shared-common';
 import type { Express } from 'express';
 import jwt from 'jsonwebtoken';
+import { createClient } from 'redis';
 import { Client, Pool } from 'pg';
 import { createApp } from '../app';
 import { createPaymentClient } from '../clients/payment.client';
+import { createStreamHub, type StreamHub } from '../controllers/stream-hub';
+import { createReplicaPublisher, subscribeToLiveUpdates } from '../repositories/live-channel';
 import { createBidQueryService } from '../services/bid-query.service';
 import { createBiddingService } from '../services/bidding.service';
 import { createClosingService, type ClosingService } from '../services/closing.service';
 import { createIdempotencyService } from '../services/idempotency.service';
+import { createLiveUpdates, type LiveUpdates } from '../services/live-updates';
+import { createNoStateCache, type StateCache } from '../repositories/state-cache';
 
 // The default is the Docker Compose Postgres from .env.example. CI sets its own service container.
 const ADMIN_URL =
@@ -44,8 +49,18 @@ export const CLOSED_ID = '10000000-0000-4000-8000-000000000006';
 /** How the fake payment-service answers a funds check. */
 export type FundsAnswer = 'sufficient' | 'insufficient' | 'no-wallet' | 'error' | 'hang';
 
-export interface TestContext {
+/** One bidding-service replica on the shared test database. */
+export interface Replica {
   app: Express;
+  hub: StreamHub;
+  live: LiveUpdates;
+  /** Starts a real HTTP server (SSE needs one) and returns its base URL. Closed by close(). */
+  listen(): Promise<string>;
+}
+
+export interface TestContext extends Replica {
+  /** Another replica on the same database, with its own hub (and Redis subscriber, if any). */
+  newReplica(): Promise<Replica>;
   pool: Pool;
   /** Events published so far. Built with createEvent, so they are checked against the contract. */
   published: DomainEvent[];
@@ -81,7 +96,10 @@ async function withAdminClient(work: (client: Client) => Promise<unknown>): Prom
   }
 }
 
-export async function createTestContext(): Promise<TestContext> {
+export async function createTestContext(
+  options: { cache?: StateCache; redisUrl?: string; heartbeatMs?: number } = {},
+): Promise<TestContext> {
+  const cache = options.cache ?? createNoStateCache();
   const database = `bidding_test_${randomBytes(6).toString('hex')}`;
   await withAdminClient((client) => client.query(`CREATE DATABASE ${database}`));
 
@@ -137,23 +155,72 @@ export async function createTestContext(): Promise<TestContext> {
     timeoutMs: 300,
     logger,
   });
-  const biddingService = createBiddingService({
-    pool,
-    publish,
-    logger,
-    antiSniping: ANTI_SNIPING,
-    payment,
-  });
+  // Live updates (B-12). With a Redis URL each replica publishes through Redis and has its own
+  // subscriber, exactly like production; without one, updates go straight to the local hub.
+  const redisClients: { close(): Promise<unknown> }[] = [];
+  const redisPublisher = options.redisUrl
+    ? createClient({ url: options.redisUrl, disableOfflineQueue: true })
+    : undefined;
+  if (redisPublisher) {
+    await redisPublisher.connect();
+    redisClients.push(redisPublisher);
+  }
+  const servers: Server[] = [];
+  const hubs: StreamHub[] = [];
 
-  return {
-    app: createApp({
+  async function buildReplica(): Promise<Replica> {
+    const hub = createStreamHub({ logger, heartbeatMs: options.heartbeatMs });
+    hubs.push(hub);
+    if (redisPublisher) {
+      const subscriber = redisPublisher.duplicate();
+      await subscriber.connect();
+      redisClients.push(subscriber);
+      await subscribeToLiveUpdates(subscriber, hub.deliver, () => {});
+    }
+    const live = createLiveUpdates({
+      deliverLocally: hub.deliver,
+      publishToReplicas: redisPublisher ? createReplicaPublisher(redisPublisher) : undefined,
+      logger,
+    });
+    const biddingService = createBiddingService({
+      pool,
+      publish,
+      logger,
+      antiSniping: ANTI_SNIPING,
+      payment,
+      cache,
+      live,
+    });
+    const app = createApp({
       pool,
       biddingService,
       idempotency: createIdempotencyService(pool),
-      queries: createBidQueryService(pool),
+      queries: createBidQueryService(pool, cache),
+      hub,
       verifyToken,
       logger,
-    }),
+    });
+    return {
+      app,
+      hub,
+      live,
+      async listen() {
+        const server = app.listen(0, '127.0.0.1');
+        await new Promise<void>((resolve) => server.once('listening', () => resolve()));
+        servers.push(server);
+        return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+      },
+    };
+  }
+
+  const primary = await buildReplica();
+
+  return {
+    app: primary.app,
+    hub: primary.hub,
+    live: primary.live,
+    listen: primary.listen,
+    newReplica: buildReplica,
     fundsChecks,
     answerFundsCheck(...answers) {
       fundsAnswers = answers;
@@ -164,7 +231,7 @@ export async function createTestContext(): Promise<TestContext> {
       publishFails = true;
     },
     newClosingService: (batchSize = 50) =>
-      createClosingService({ pool, publish, logger, batchSize }),
+      createClosingService({ pool, publish, logger, batchSize, cache, live: primary.live }),
     async expireAuction(auctionId) {
       await pool.query(
         `UPDATE auction_state
@@ -208,6 +275,12 @@ export async function createTestContext(): Promise<TestContext> {
       // test that opened many at once. DROP DATABASE ... WITH (FORCE) then terminates them
       // (57P01), and without a listener the pool would report that as an unhandled error.
       pool.on('error', () => {});
+      hubs.forEach((hub) => hub.closeAll());
+      for (const server of servers) {
+        server.closeAllConnections();
+        await new Promise((resolve) => server.close(resolve));
+      }
+      await Promise.allSettled(redisClients.map((client) => client.close()));
       hanging.forEach((res) => res.destroy());
       fakePayment.closeAllConnections();
       await new Promise((resolve) => fakePayment.close(resolve));

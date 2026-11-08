@@ -2,6 +2,7 @@ import { authenticate, requireRole, type TokenVerifier } from '@auction/shared-a
 import { Router } from 'express';
 import { createBidQueryController } from '../controllers/bid-query.controller';
 import { createBidController } from '../controllers/bid.controller';
+import type { StreamHub } from '../controllers/stream-hub';
 import type { BidQueryService } from '../services/bid-query.service';
 import type { BiddingService } from '../services/bidding.service';
 import type { IdempotencyService } from '../services/idempotency.service';
@@ -11,15 +12,17 @@ export function createRoutes(
   biddingService: BiddingService,
   idempotency: IdempotencyService,
   queries: BidQueryService,
+  hub: StreamHub,
   verifyToken: TokenVerifier,
 ): Router {
   const controller = createBidController(biddingService, idempotency);
-  const read = createBidQueryController(queries);
+  const read = createBidQueryController(queries, hub);
   const router = Router();
 
   // Public and read-only (decision Q3), like the catalog.
   router.get('/auctions/:id/state', read.getState);
   router.get('/auctions/:id/bids', read.listBids);
+  router.get('/auctions/:id/stream', read.stream);
   // Any logged-in user; someone who never bid simply gets an empty list.
   router.get('/bids/me', authenticate(verifyToken), read.listMyBids);
 

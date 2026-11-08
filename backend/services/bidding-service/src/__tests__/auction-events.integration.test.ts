@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { createEvent, createLogger, type DomainEvent } from '@auction/shared-common';
 import request from 'supertest';
 import { createAuctionEventHandlers } from '../events/auction-events.consumer';
+import { createNoStateCache } from '../repositories/state-cache';
 import {
   BIDDER1_ID,
   LIVE_WITH_BIDS_ID,
@@ -19,6 +20,8 @@ beforeEach(async () => {
   handlers = createAuctionEventHandlers({
     pool: ctx.pool,
     logger: createLogger({ service: 'auction-events-test', level: 'silent' }),
+    cache: createNoStateCache(),
+    live: ctx.live,
   });
 });
 

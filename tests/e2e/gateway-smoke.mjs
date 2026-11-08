@@ -101,8 +101,39 @@ test('routes bids, state and stream to bidding-service, not auction-service', as
   assert.equal(state.body.auctionId, SEEDED_LIVE_ID);
   // /bids goes to bidding-service too, and a user's own bids need a token.
   assertGatewayError(await call('/bids/me'), 401, 'UNAUTHORIZED');
-  // The stream comes with B-12.
-  assertGatewayError(await call(`/auctions/${SEEDED_LIVE_ID}/stream`), 404, 'NOT_FOUND');
+});
+
+test('streams live state through the gateway without a token and without buffering (B-12)', async () => {
+  // A stream never ends by itself, so the test reads the first event and then disconnects.
+  const controller = new AbortController();
+  const response = await fetch(`${API}/auctions/${SEEDED_LIVE_ID}/stream`, {
+    signal: controller.signal,
+  });
+  try {
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type') ?? '', /^text\/event-stream/);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let text = '';
+    // The first event arrives at once only if the gateway does not buffer the response.
+    while (!text.includes('\n\n', text.indexOf('event: state'))) {
+      const { done, value } = await reader.read();
+      assert.equal(done, false, 'the stream ended before the first event');
+      text += decoder.decode(value, { stream: true });
+    }
+    const data = JSON.parse(text.match(/^data: (.*)$/m)[1]);
+    assert.equal(data.auctionId, SEEDED_LIVE_ID);
+    assert.equal(data.status, 'OPEN');
+    assert.equal(Object.hasOwn(data, 'reservePriceCents'), false);
+  } finally {
+    controller.abort();
+  }
+  // An unknown auction is an ordinary JSON 404 before any stream starts.
+  assertGatewayError(
+    await call('/auctions/10000000-0000-4000-8000-0000000000ff/stream'),
+    404,
+    'AUCTION_NOT_FOUND',
+  );
 });
 
 test('routes the wallet to payment-service', async () => {

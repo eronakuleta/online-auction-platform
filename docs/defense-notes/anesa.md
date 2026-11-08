@@ -81,3 +81,19 @@ How to explain each of Anesa's tasks (`B-xx`) at the defense. Short, in our own 
 - **Reads do not lock.** Unlike place-bid, these queries use plain `SELECT` without `FOR UPDATE`, so a page full of readers never slows down bidding.
 - **Pagination follows the team convention.** `?page=1&size=20`, size capped at 100, and `{ data, page, size, total }`. History is ordered by `sequence`, which the unique `(auction_id, sequence)` index already serves.
 - **My bids shows `isHighest`.** It compares each bid with the auction's `highest_bid_id`, so the page can show "you are winning" or "outbid" without a second request.
+
+## B-09 Redis cache of the live state
+
+- **What is cached.** Each auction's live state (highest bid, bidder, end time, status, version) under `auction:<id>:state` for 30 s. The database stays the source of truth; Redis only makes reads fast.
+- **Write-through and cache-aside.** After a bid commits, the new state is written straight into Redis (write-through). `GET /state` reads Redis first and only on a miss asks Postgres and fills the cache (cache-aside).
+- **Why the version check (Lua).** With two replicas, version 5 and version 6 can reach Redis in the wrong order. A small Lua script, which Redis runs atomically, only writes if the cached version is older, so an old state never replaces a newer one.
+- **No plain delete on cancel or close.** Instead of deleting the key, the fresh state with its higher version is written. A delete would let a late, older write bring back an "open" auction; the version check makes that impossible.
+- **Redis is optional.** Every cache call has a 200 ms timeout and the client has no offline queue, so when Redis is down calls fail at once and the service reads Postgres. A test points the cache at a dead port and bidding still works.
+
+## B-12 Live updates with SSE and Redis pub/sub
+
+- **Why SSE and not WebSockets.** The page only needs updates from server to browser, and the browser's `EventSource` reconnects by itself. It cannot send an `Authorization` header, so the stream is public and read-only (proposal 1, decision Q3); it carries only public data and never the reserve price.
+- **What a viewer receives.** First the current state, then one `state` event per change (a bid, an anti-sniping extension, a close, a cancel). `id` is the state's version, so the page can ignore an update older than one it already shows; a `: heartbeat` comment every 15 s keeps the connection alive.
+- **Why Redis pub/sub (two replicas).** A viewer is connected to one replica, but the bid can arrive at the other. After a bid commits, the new state is published on `auction:<id>:live`; every replica is subscribed and pushes it to its own viewers. A test places the bid on replica A and a viewer on replica B receives it exactly once.
+- **The database stays the truth.** A lost live update never turns a committed bid into an error. If Redis is down, the update is still delivered to this replica's viewers, and the page can always reload `GET /state`.
+- **Cleanup and shutdown.** A viewer who disconnects is forgotten at once (tested), the heartbeat timer does not keep the process alive, and on shutdown the open streams are closed first, because they never end by themselves and would block `server.close()`.

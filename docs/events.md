@@ -272,5 +272,11 @@ at 100; a value outside those limits is a `400`.
   `EventSource` cannot send an `Authorization` header and a token in the URL would leak into logs.
   It pushes only public data (highest bid, bid count, `endsAt`, closed status). Placing a bid still
   needs a JWT, and Nginx limits SSE connections per IP.
+- **SSE format (B-12):** the stream sends `retry: 3000`, then one `state` event per change, and a
+  comment line `: heartbeat` every 15 s. Each event has `id: <version>`, and its `data` is the same
+  JSON as `GET /api/v1/auctions/:id/state`, so a page can drop an update older than one it already
+  has. Bidding replicas share updates through Redis pub/sub (channel `auction:<id>:live`). The
+  response sets `X-Accel-Buffering: no` and `Cache-Control: no-cache, no-transform`; the gateway
+  must not buffer it and its read timeout must stay above the 15 s heartbeat (A-21).
 - **`TASKS.md` B-11** no longer says the closing worker publishes `bid.placed`; that event comes
   from place-bid (B-06).
