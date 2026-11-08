@@ -37,11 +37,12 @@ return 1
 
 const DATE_FIELDS = ['startsAt', 'endsAt', 'originalEndsAt'] as const;
 
-function serialize(state: AuctionState): string {
+/** Shared with the live channel (B-12): one JSON form of the state, dates as ISO strings. */
+export function serialize(state: AuctionState): string {
   return JSON.stringify(state);
 }
 
-function deserialize(text: string): AuctionState {
+export function deserialize(text: string): AuctionState {
   const raw = JSON.parse(text) as Record<string, unknown>;
   for (const field of DATE_FIELDS) {
     raw[field] = raw[field] === null ? null : new Date(raw[field] as string);

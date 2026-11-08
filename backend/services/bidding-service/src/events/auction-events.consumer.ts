@@ -6,6 +6,7 @@ import type { Pool } from 'pg';
 import { withTransaction } from '../repositories/database';
 import type { StateCache } from '../repositories/state-cache';
 import { refreshCachedState } from '../services/cache-refresh';
+import type { LiveUpdates } from '../services/live-updates';
 import {
   cancelFromEvent,
   insertSnapshot,
@@ -16,8 +17,9 @@ export function createAuctionEventHandlers(deps: {
   pool: Pool;
   logger: Logger;
   cache: StateCache;
+  live: LiveUpdates;
 }): EventHandlers<'bidding-service'> {
-  const { pool, logger, cache } = deps;
+  const { pool, logger, cache, live } = deps;
 
   return {
     async 'auction.published'(event) {
@@ -28,7 +30,7 @@ export function createAuctionEventHandlers(deps: {
         }
         return (await insertSnapshot(tx, payload)) ? 'snapshot created' : 'already known';
       });
-      await refreshCachedState(pool, cache, payload.auctionId);
+      await refreshCachedState(pool, cache, live, payload.auctionId);
       logger.info(
         { eventId: event.eventId, auctionId: payload.auctionId, outcome },
         'auction.published handled',
@@ -43,7 +45,7 @@ export function createAuctionEventHandlers(deps: {
         }
         return `status ${await cancelFromEvent(tx, payload)}`;
       });
-      await refreshCachedState(pool, cache, payload.auctionId);
+      await refreshCachedState(pool, cache, live, payload.auctionId);
       logger.info(
         { eventId: event.eventId, auctionId: payload.auctionId, outcome },
         'auction.cancelled handled',

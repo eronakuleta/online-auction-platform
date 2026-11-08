@@ -21,6 +21,7 @@ beforeEach(async () => {
     pool: ctx.pool,
     logger: createLogger({ service: 'auction-events-test', level: 'silent' }),
     cache: createNoStateCache(),
+    live: ctx.live,
   });
 });
 

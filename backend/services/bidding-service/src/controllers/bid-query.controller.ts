@@ -4,6 +4,7 @@ import type { MyBid } from '../repositories/bidding.repository';
 import { auctionIdParamsSchema, paginationQuerySchema } from '../schemas/bid.schemas';
 import type { BidQueryService } from '../services/bid-query.service';
 import { toAuctionStateResponse, toBidResponse } from './bid.controller';
+import type { StreamHub } from './stream-hub';
 
 function toMyBidResponse(bid: MyBid) {
   return {
@@ -16,7 +17,7 @@ function toMyBidResponse(bid: MyBid) {
   };
 }
 
-export function createBidQueryController(queries: BidQueryService) {
+export function createBidQueryController(queries: BidQueryService, hub: StreamHub) {
   const getState: RequestHandler = async (req, res) => {
     const { id } = auctionIdParamsSchema.parse(req.params);
     res.status(200).json(toAuctionStateResponse(await queries.getState(id)));
@@ -36,5 +37,13 @@ export function createBidQueryController(queries: BidQueryService) {
     res.status(200).json({ data: items.map(toMyBidResponse), ...pagination, total });
   };
 
-  return { getState, listBids, listMyBids };
+  // Public (decision Q3, docs/events.md section 10): EventSource cannot send a token. An unknown
+  // auction gets a normal JSON 404 before any stream starts.
+  const stream: RequestHandler = async (req, res) => {
+    const { id } = auctionIdParamsSchema.parse(req.params);
+    const current = await queries.getState(id);
+    hub.open(res, current, (listener) => req.on('close', listener));
+  };
+
+  return { getState, listBids, listMyBids, stream };
 }
