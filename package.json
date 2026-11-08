@@ -30,7 +30,8 @@
     "test:events": "node --test tests/e2e/auction-events.e2e.mjs",
     "test:wallet": "node --test tests/e2e/wallet.e2e.mjs",
     "test:settlement": "node --test tests/e2e/settlement.e2e.mjs",
-    "test:lifecycle": "node --test tests/e2e/lifecycle.e2e.mjs"
+    "test:lifecycle": "node --test tests/e2e/lifecycle.e2e.mjs",
+    "test:load-balancing": "node --test tests/e2e/load-balancing.e2e.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

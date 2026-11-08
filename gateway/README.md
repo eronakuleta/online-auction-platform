@@ -42,8 +42,28 @@ unchanged.
 - `/internal` is checked after nginx decodes `%`-escapes and resolves `..` and `//`, so
   `/%69nternal`, `/INTERNAL` and `/api/v1/auctions/../../internal` are refused too. It gets the same
   404 as an unknown route, so the gateway does not reveal that the path exists.
-- Load balancing the two bidding replicas and the SSE settings (no buffering, long timeout) are task
-  A-21.
+
+## Load balancing bidding-service (A-21)
+
+bidding-service runs as `BIDDING_REPLICAS` containers (default 2) under one name. Docker's DNS
+returns every replica's address, and because `proxy_pass` uses a variable, nginx resolves the
+name per request and spreads requests round robin over all of them. No request has to stick to a
+replica: PostgreSQL's row lock orders bids, the closing workers share the work with
+`FOR UPDATE SKIP LOCKED`, and Redis pub/sub brings each update to the stream clients of every
+replica (B-12). The access log's `upstream=` field names the replica that answered.
+
+The live stream (`/api/v1/auctions/:id/stream`, SSE) has its own location, because one long
+response breaks the usual proxy settings:
+
+| Setting                                        | Why                                                                                         |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `proxy_buffering off`, `proxy_cache off`       | Each event is passed on at once, not collected first                                        |
+| `proxy_set_header Connection ''`               | Keeps the HTTP/1.1 connection to the service open                                           |
+| `proxy_read_timeout 1h`                        | The service sends a heartbeat every 15 s; the API default of 30 s would not do for a stream |
+| `limit_conn streams ${GATEWAY_STREAMS_PER_IP}` | The stream needs no token (proposal 1), so one IP may keep at most 20 open (429 above)      |
+
+`tests/e2e/load-balancing.e2e.mjs` proves it: requests reach both replicas, and a stream on one
+replica receives bids handled by the other. With one replica both tests fail.
 
 ## Errors and request IDs
 

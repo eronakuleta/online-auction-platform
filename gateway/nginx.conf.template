@@ -23,6 +23,11 @@ limit_req_zone $binary_remote_addr zone=api:10m rate=${GATEWAY_API_RATE};
 limit_req_zone $binary_remote_addr zone=auth:10m rate=${GATEWAY_AUTH_RATE};
 limit_req_status 429;
 
+# Open live streams (SSE) per client IP (docs/events.md §10, proposal 1): the stream needs no token,
+# so this stops one client from holding thousands of connections. Over the limit: 429.
+limit_conn_zone $binary_remote_addr zone=streams:10m;
+limit_conn_status 429;
+
 # Docker's internal DNS. Service names are looked up per request, not once at start, so the gateway
 # starts even while a service is still missing (it answers 503 for it), and it follows a container
 # that restarts with a new IP address.
@@ -102,9 +107,31 @@ server {
 
     # Live auction data belongs to bidding-service. Regex locations win over the /api/v1/auctions
     # prefix below, so these never reach auction-service (ROADMAP §5).
-    location ~ ^/api/v1/auctions/[^/]+/(bids|state|stream)$ {
+    #
+    # Load balancing (task A-21): bidding-service runs as BIDDING_REPLICAS containers under one name.
+    # Docker's DNS answers with every replica's address, and because proxy_pass uses a variable,
+    # nginx resolves the name per request and spreads requests round robin over all addresses.
+    # Nothing has to stick to one replica: the row lock in PostgreSQL orders bids, both closing
+    # workers share the work with SKIP LOCKED, and Redis pub/sub brings every update to every
+    # replica's stream clients (B-12).
+    location ~ ^/api/v1/auctions/[^/]+/(bids|state)$ {
         limit_req zone=api burst=${GATEWAY_API_BURST} nodelay;
         proxy_pass $bidding_service;
+    }
+
+    # The live stream (SSE) is one long response, so the usual proxy settings would break it.
+    location ~ ^/api/v1/auctions/[^/]+/stream$ {
+        limit_req zone=api burst=${GATEWAY_API_BURST} nodelay;
+        limit_conn streams ${GATEWAY_STREAMS_PER_IP};
+        proxy_pass $bidding_service;
+        # Pass each event on at once instead of collecting the response first.
+        proxy_buffering off;
+        proxy_cache off;
+        # Keep the connection open to the service (HTTP/1.1 without "Connection: close").
+        proxy_set_header Connection '';
+        # The service sends a heartbeat every 15 s; without one for an hour the stream is dead.
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
     }
 
     location /api/v1/auth/ {
