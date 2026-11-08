@@ -100,7 +100,7 @@ Only the `Due` column was re-dated for the new deadline. Wording, hours and depe
 | B-12 | bidding-service: SSE `/auctions/:id/stream` with Redis pub/sub fan-out for 2 replicas, heartbeat. **Unblocks A-21** | 8 | Wed 11.11 | B-09, B-11 | [x] |
 | B-13 | bidding-service tests: unit, integration, concurrency test (50 parallel bids give one consistent order and winner) | 8 | Fri 13.11 | B-06 to B-11 | [ ] |
 | B-14 | notification-service: schema and consumers (welcome, outbid, won, lost, sold, payment completed/failed) | 8 | Wed 11.11 | B-02, B-03 | [x] |
-| B-15 | notification-service: list, unread-count, mark read, read-all. **Proposed, Anesa to confirm:** email simulation via MailHog moved to stretch (6 → 5 h) | 5 | Wed 11.11 | B-14 | [ ] |
+| B-15 | notification-service: list, unread-count, mark read, read-all. **Proposed, Anesa to confirm:** email simulation via MailHog moved to stretch (6 → 5 h) | 5 | Wed 11.11 | B-14 | [x] |
 | B-16 | notification-service tests | 3 | Fri 13.11 | B-14, B-15 | [ ] |
 | B-17 | Observability: `/health` and `/metrics` on every service (shared helper), Prometheus in a compose profile. **Proposed, Anesa to confirm:** Grafana dashboard moved to stretch (8 → 5 h) | 5 | Fri 13.11 | all services | [ ] |
 | B-18 | `tests/api-collection`: Bruno collection and results table (input, expected, actual) covering valid, invalid, boundary and unauthorized cases across all services; `docs/test-report.md` | 6 | Sat 14.11 | all services | [ ] |

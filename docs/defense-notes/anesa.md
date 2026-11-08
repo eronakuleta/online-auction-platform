@@ -105,3 +105,11 @@ How to explain each of Anesa's tasks (`B-xx`) at the defense. Short, in our own 
 - **Idempotency by a unique key.** Delivery is at-least-once, so an event can arrive twice. `UNIQUE (event_id, user_id)` plus `ON CONFLICT DO NOTHING` means a redelivery, five deliveries at once, or a retry after a half-finished first attempt all end with exactly the notifications that should exist.
 - **If the database fails, nothing is lost.** The handler throws, so the shared consumer retries it three times and then moves the message to the dead-letter queue, where a person can look at it. A test drops the table to show the handler really fails instead of hiding the error.
 - **The schema defends itself.** `CHECK` constraints refuse unknown types, empty or too long text, a welcome message about an auction and any other type without one. The list and the unread count each get an index (a partial one for unread, which stays small), and a test shows Postgres can use them.
+
+## B-15 Notification endpoints
+
+- **A user can only ever see or change their own notifications.** Every query filters by the user ID from the token, never by anything the client sends. Four tests break that filter on purpose (list, unread count, mark one, mark all), and each one makes a test fail.
+- **404 and 403 mean different things.** Marking a notification that does not exist is `404 NOTIFICATION_NOT_FOUND`; marking someone else's is `403`, as the project's ownership rule says. The update itself carries the owner in its `WHERE`, so a 403 never changes a row.
+- **Marking twice is harmless.** `COALESCE(read_at, now())` keeps the first read time, and read-all only touches rows that are still unread, so repeating either changes nothing and never rewrites history.
+- **The bell is cheap.** The unread count uses a partial index on unread rows only, so it stays fast however many read notifications pile up. The list pages by `created_at, id`, so notifications created in the same instant never skip or repeat across pages.
+- **Any logged-in role may use it.** The permission matrix says BIDDER, SELLER and ADMIN read their own notifications, so the routes check a login but no role. Unknown paths stay a normal 404 instead of 401, because the login check is on each route, not on the whole router.
