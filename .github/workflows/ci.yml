@@ -195,6 +195,12 @@ jobs:
           NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
         run: node --test tests/e2e/lifecycle.e2e.mjs
 
+      # Two bidding replicas: requests reach both, and a stream on one gets bids from the other (A-21).
+      - name: Load balancing test
+        env:
+          NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
+        run: node --test tests/e2e/load-balancing.e2e.mjs
+
       - name: Show logs on failure
         if: failure()
         run: docker compose logs --no-color --tail 100
