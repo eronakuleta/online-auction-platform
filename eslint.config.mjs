@@ -8,7 +8,13 @@ import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
   {
-    ignores: ['**/node_modules/**', '**/dist/**', '**/coverage/**', 'tests/performance/results/**'],
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/coverage/**',
+      'tests/performance/results/**',
+      'temp/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -30,6 +36,10 @@ export default tseslint.config(
       '*.{js,mjs}',
     ],
     languageOptions: { globals: globals.node },
+  },
+  {
+    files: ['tests/performance/*.js'],
+    languageOptions: { globals: { __ENV: 'readonly', __VU: 'readonly', open: 'readonly' } },
   },
   {
     // Backend packages are CommonJS, so their plain .js config files (e.g. jest.config.js) are too.

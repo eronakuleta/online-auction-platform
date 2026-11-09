@@ -12,3 +12,6 @@ tests
 database
 frontend/src
 *.md
+temp
+tmp
+*.log

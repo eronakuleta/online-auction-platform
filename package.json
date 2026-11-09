@@ -31,7 +31,15 @@
     "test:wallet": "node --test tests/e2e/wallet.e2e.mjs",
     "test:settlement": "node --test tests/e2e/settlement.e2e.mjs",
     "test:lifecycle": "node --test tests/e2e/lifecycle.e2e.mjs",
-    "test:load-balancing": "node --test tests/e2e/load-balancing.e2e.mjs"
+    "test:load-balancing": "node --test tests/e2e/load-balancing.e2e.mjs",
+    "start:stack": "node scripts/manage.mjs start",
+    "reset-db": "node scripts/manage.mjs reset",
+    "seed": "node scripts/manage.mjs seed",
+    "demo": "node scripts/manage.mjs demo",
+    "package": "node scripts/manage.mjs package",
+    "test:stack": "node scripts/test-stack.mjs",
+    "test:collection": "node scripts/run-verified.mjs api-collection",
+    "perf": "node scripts/run-verified.mjs performance"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
