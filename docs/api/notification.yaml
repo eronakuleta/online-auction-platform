@@ -1,0 +1,224 @@
+openapi: 3.0.3
+info:
+  title: notification-service
+  version: 1.0.0
+  description: In-app event-driven notifications. All routes require login.
+    Queries and updates are restricted to the authenticated owner.
+servers:
+  - url: https://localhost:8443/api/v1
+paths:
+  /notifications:
+    get:
+      summary: Own notifications, newest first
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000000
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPage'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /notifications/unread-count:
+    get:
+      summary: Own unread count
+      responses:
+        '200':
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - unreadCount
+                properties:
+                  unreadCount:
+                    type: integer
+                    minimum: 0
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /notifications/{id}/read:
+    patch:
+      summary: Mark own notification read
+      description: 'Idempotent: preserves the original readAt. Another owner is 403;
+        unknown ID is 404.'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Role or ownership denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /notifications/read-all:
+    post:
+      summary: Mark all own notifications read
+      responses:
+        '200':
+          description: Number newly marked
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - updated
+                properties:
+                  updated:
+                    type: integer
+                    minimum: 0
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+            - details
+            - requestId
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+            requestId:
+              type: string
+    Notification:
+      type: object
+      required:
+        - id
+        - type
+        - title
+        - message
+        - auctionId
+        - readAt
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - WELCOME
+            - OUTBID
+            - AUCTION_WON
+            - AUCTION_LOST
+            - ITEM_SOLD
+            - NO_SALE
+            - AUCTION_CANCELLED
+            - PAYMENT_COMPLETED
+            - PAYMENT_FAILED
+        title:
+          type: string
+        message:
+          type: string
+        auctionId:
+          type: string
+          format: uuid
+          nullable: true
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    NotificationPage:
+      type: object
+      required:
+        - data
+        - page
+        - size
+        - total
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        page:
+          type: integer
+        size:
+          type: integer
+        total:
+          type: integer
+security:
+  - bearerAuth: []

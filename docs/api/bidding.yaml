@@ -1,0 +1,474 @@
+openapi: 3.0.3
+info:
+  title: bidding-service
+  version: 1.0.0
+  description: Concurrency-safe bidding, Redis-backed state and public SSE. Money
+    is integer cents. Internal cancel is blocked at the gateway. A funds check
+    does not reserve funds.
+servers:
+  - url: https://localhost:8443/api/v1
+paths:
+  /auctions/{id}/bids:
+    get:
+      summary: Public bid history, newest sequence first
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000000
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Page of accepted bids
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BidPage'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Place a bid (BIDDER)
+      description: 'The first bid must meet the starting price; later bids must meet
+        highest + increment. Own auction, current highest bidder, closed or
+        not-yet-started auction, and insufficient funds are refused.
+        Anti-sniping can extend endsAt. Optional idempotency keys are scoped per
+        user; a different body with the same key is 409. Replay returns the
+        original 201 with Idempotent-Replayed: true.'
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]{1,255}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amountCents
+              properties:
+                amountCents:
+                  type: integer
+                  minimum: 1
+                  maximum: 9007199254740991
+      responses:
+        '201':
+          description: Accepted or replayed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - bid
+                  - auction
+                properties:
+                  bid:
+                    $ref: '#/components/schemas/Bid'
+                  auction:
+                    $ref: '#/components/schemas/State'
+          headers:
+            Idempotent-Replayed:
+              schema:
+                type: string
+                enum:
+                  - 'true'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Role or ownership denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auctions/{id}/state:
+    get:
+      summary: Public live state (reserve price excluded)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Live state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/State'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auctions/{id}/stream:
+    get:
+      summary: Public Server-Sent Events
+      description: 'Native EventSource needs no JWT. Event state contains the same
+        JSON as GET state; id is the version. Initial snapshot, retry: 3000,
+        heartbeat comments every 15 seconds. Reconnect receives a fresh
+        snapshot, not historical replay. Drop older versions client-side.'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Open SSE connection
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |+
+                  id: 2
+                  event: state
+                  data: {"version":2}
+
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /bids/me:
+    get:
+      summary: Authenticated user bid history
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000000
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Page of own bids
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyBidPage'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /internal/auctions/{id}/cancel:
+    post:
+      servers:
+        - url: http://bidding-service:3003
+      summary: Internal cancellation under the bid row lock
+      description: Internal Docker network only. Gateway blocks this path. Seller may
+        cancel only before the first bid; admin may cancel with bids.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cancelledBy
+                - isAdmin
+              properties:
+                cancelledBy:
+                  type: string
+                  format: uuid
+                isAdmin:
+                  type: boolean
+      responses:
+        '204':
+          description: Cancelled (idempotent)
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Role or ownership denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: State or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+            - details
+            - requestId
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+            requestId:
+              type: string
+    Bid:
+      type: object
+      required:
+        - id
+        - auctionId
+        - bidderId
+        - amountCents
+        - sequence
+        - placedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        auctionId:
+          type: string
+          format: uuid
+        bidderId:
+          type: string
+          format: uuid
+        amountCents:
+          type: integer
+          minimum: 0
+        sequence:
+          type: integer
+        placedAt:
+          type: string
+          format: date-time
+    State:
+      type: object
+      required:
+        - auctionId
+        - title
+        - sellerId
+        - status
+        - currency
+        - highestBidCents
+        - highestBidderId
+        - bidCount
+        - minimumNextBidCents
+        - startsAt
+        - endsAt
+        - extensionCount
+        - version
+      properties:
+        auctionId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        sellerId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - OPEN
+            - CANCELLED
+            - CLOSED_SOLD
+            - CLOSED_NO_SALE
+        currency:
+          type: string
+          example: EUR
+        highestBidCents:
+          type: integer
+          minimum: 0
+          nullable: true
+        highestBidderId:
+          type: string
+          format: uuid
+          nullable: true
+        bidCount:
+          type: integer
+        minimumNextBidCents:
+          type: integer
+          minimum: 0
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        extensionCount:
+          type: integer
+        version:
+          type: integer
+    MyBid:
+      allOf:
+        - $ref: '#/components/schemas/Bid'
+        - type: object
+          required:
+            - title
+            - currency
+            - auctionStatus
+            - endsAt
+            - isHighest
+          properties:
+            title:
+              type: string
+            currency:
+              type: string
+            auctionStatus:
+              type: string
+            endsAt:
+              type: string
+              format: date-time
+            isHighest:
+              type: boolean
+    BidPage:
+      type: object
+      required:
+        - data
+        - page
+        - size
+        - total
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bid'
+        page:
+          type: integer
+        size:
+          type: integer
+        total:
+          type: integer
+    MyBidPage:
+      type: object
+      required:
+        - data
+        - page
+        - size
+        - total
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyBid'
+        page:
+          type: integer
+        size:
+          type: integer
+        total:
+          type: integer

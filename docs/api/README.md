@@ -5,7 +5,7 @@
 | `auth.yaml`                         | auth-service          | Erona | Complete                                                                    |
 | `auction.yaml`                      | auction-service       | Erona | Complete                                                                    |
 | `payment.yaml`                      | payment-service       | Erona | Complete (wallet, funds check, `GET /payments`; settlement is event-driven) |
-| `bidding.yaml`, `notification.yaml` | bidding, notification | Anesa | Task B-22                                                                   |
+| `bidding.yaml`, `notification.yaml` | bidding, notification | Anesa | Complete (B-22; route coverage tests in both services)                      |
 
 ## View them
 
