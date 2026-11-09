@@ -21,6 +21,8 @@ HTTP durations are milliseconds; throughput is completed HTTP requests per secon
 | browse-two-replicas | 23114    | 1538.9     | 21.12   | 44.79   | 100.0%        |
 | bids-500            | 500      | 310.7      | 1146.28 | 1388.98 | 100.0%        |
 
+**Requirement targets:** NFR-P1 correctness passed, including a direct parameterized check of the owning bidding database. NFR-P2's 500 ms bid-p95 target was **not met**: the measured p95 was 1388.98 ms. This remains a performance limitation, and the target has not been relaxed. The browse workload's combined catalog/state p95 is below NFR-P3's 200 ms target, but this run did not save a separate catalog-only percentile; that endpoint-specific target is not independently certified by the combined metric.
+
 Raw k6 summaries and terminal output are under [tests/performance/results](../tests/performance/results). The final bid run accepted **11** requests; the remaining **489** were expected low-bid conflicts. All 500 completed. The maximum was **51000 cents (EUR 510.00)**; the worker closed the auction as **CLOSED_SOLD** with exactly that bidder as the winner. Sequence and winner assertions passed; see [correctness.json](../tests/performance/results/correctness.json), recorded 2026-11-09T13:22:27.880Z.
 
 Caching reduced observed browse latency in these samples, and the two cached replicas completed more requests than one. The comparison is short, local and non-randomized, so it supports a demonstration of the implementation, not a statistically controlled speedup or production capacity guarantee. SSE fan-out correctness is covered by the separate two-replica integration/gateway tests rather than a large concurrent-viewer load test.

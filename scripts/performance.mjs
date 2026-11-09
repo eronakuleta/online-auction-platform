@@ -164,6 +164,7 @@ try {
     finalStatus: state.status,
   };
   writeFileSync('tests/performance/results/correctness.json', JSON.stringify(result, null, 2));
+  execFileSync(process.execPath, ['scripts/verify-load-database.mjs'], { stdio: 'inherit' });
 } finally {
   // Always restore the normal gateway protection, cache and two-replica configuration.
   delete process.env.STATE_CACHE_ENABLED;

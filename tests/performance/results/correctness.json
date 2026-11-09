@@ -6,5 +6,7 @@
   "highestBidCents": 51000,
   "consistentSequence": true,
   "winnerMatchesMaximumBid": true,
-  "finalStatus": "CLOSED_SOLD"
+  "finalStatus": "CLOSED_SOLD",
+  "databaseVerified": true,
+  "databaseVerifiedAt": "2026-11-09T13:28:35.803Z"
 }
