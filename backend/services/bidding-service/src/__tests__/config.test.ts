@@ -80,6 +80,14 @@ describe('loadConfig', () => {
     );
   });
 
+  it('accepts only explicit cache toggle values', () => {
+    expect(loadConfig(validEnv).redis.enabled).toBe(true);
+    expect(loadConfig({ ...validEnv, STATE_CACHE_ENABLED: 'false' }).redis.enabled).toBe(false);
+    expect(() => loadConfig({ ...validEnv, STATE_CACHE_ENABLED: 'invalid' })).toThrow(
+      /STATE_CACHE_ENABLED/,
+    );
+  });
+
   it('needs only the public key', () => {
     expect(JSON.stringify(loadConfig(validEnv).jwt)).not.toMatch(/private/i);
   });

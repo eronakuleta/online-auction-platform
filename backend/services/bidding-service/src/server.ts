@@ -10,7 +10,7 @@ import { startClosingWorker } from './jobs/closing-worker';
 import { loadConfig } from './config';
 import { createPool } from './repositories/database';
 import { createReplicaPublisher, subscribeToLiveUpdates } from './repositories/live-channel';
-import { createRedisStateCache } from './repositories/state-cache';
+import { createNoStateCache, createRedisStateCache } from './repositories/state-cache';
 import { createBidQueryService } from './services/bid-query.service';
 import { createBiddingService } from './services/bidding.service';
 import { createClosingService } from './services/closing.service';
@@ -37,11 +37,13 @@ async function main(): Promise<void> {
   });
   redis.on('error', (err) => logger.warn({ err }, 'Redis connection problem'));
   redis.connect().catch((err: unknown) => logger.warn({ err }, 'Redis not reachable yet'));
-  const cache = createRedisStateCache({
-    client: redis,
-    ttlSeconds: config.redis.stateTtlSeconds,
-    logger,
-  });
+  const cache = config.redis.enabled
+    ? createRedisStateCache({
+        client: redis,
+        ttlSeconds: config.redis.stateTtlSeconds,
+        logger,
+      })
+    : createNoStateCache();
 
   // Live updates (B-12): every replica subscribes on its own connection and delivers to its viewers.
   const hub = createStreamHub({ logger });

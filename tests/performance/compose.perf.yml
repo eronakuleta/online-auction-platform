@@ -1,0 +1,11 @@
+# Local measurements only. The normal Compose file retains strict gateway rate limits.
+services:
+  gateway:
+    environment:
+      GATEWAY_API_RATE: 5000r/s
+      GATEWAY_API_BURST: 5000
+      GATEWAY_AUTH_RATE: 1000r/s
+      GATEWAY_AUTH_BURST: 1000
+  bidding-service:
+    environment:
+      SNIPE_WINDOW_SECONDS: 0

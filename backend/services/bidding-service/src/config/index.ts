@@ -23,6 +23,7 @@ const envSchema = z.object({
   PAYMENT_SERVICE_URL: z.url(),
   FUNDS_CHECK_TIMEOUT_MS: z.coerce.number().int().positive(),
   REDIS_URL: required,
+  STATE_CACHE_ENABLED: z.enum(['true', 'false']).default('true'),
   STATE_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(30),
   CLOSING_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
   CLOSING_BATCH_SIZE: z.coerce.number().int().positive().default(50),
@@ -38,7 +39,7 @@ export interface Config {
   closing: { intervalMs: number; batchSize: number };
   payment: { url: string; timeoutMs: number };
   /** REDIS_URL may contain a password, so it is never logged. */
-  redis: { url: string; stateTtlSeconds: number };
+  redis: { url: string; stateTtlSeconds: number; enabled: boolean };
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -68,7 +69,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       extensionSeconds: values.SNIPE_EXTENSION_SECONDS,
       maxExtensions: values.MAX_EXTENSIONS,
     },
-    redis: { url: values.REDIS_URL, stateTtlSeconds: values.STATE_CACHE_TTL_SECONDS },
+    redis: {
+      url: values.REDIS_URL,
+      stateTtlSeconds: values.STATE_CACHE_TTL_SECONDS,
+      enabled: values.STATE_CACHE_ENABLED === 'true',
+    },
     payment: { url: values.PAYMENT_SERVICE_URL, timeoutMs: values.FUNDS_CHECK_TIMEOUT_MS },
     closing: { intervalMs: values.CLOSING_INTERVAL_MS, batchSize: values.CLOSING_BATCH_SIZE },
   };

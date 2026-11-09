@@ -1,0 +1,47 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: /scripts/bids.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 500 max VUs, 1m0s max duration (incl. graceful stop):
+              * concurrent_bids: 1 iterations for each of 500 VUs (maxDuration: 30s, gracefulStop: 30s)
+
+
+running (0m00.4s), 500/500 VUs, 0 complete and 0 interrupted iterations
+concurrent_bids   [   0% ] 500 VUs  00.4s/30s  000/500 iters, 1 per VU
+
+running (0m01.4s), 315/500 VUs, 185 complete and 0 interrupted iterations
+concurrent_bids   [  37% ] 500 VUs  01.4s/30s  185/500 iters, 1 per VU
+
+     ✓ accepted or valid bid-too-low conflict
+
+   ✓ bids_accepted..................: 11      6.834699/s
+     bids_conflicted................: 489     303.833452/s
+   ✓ checks.........................: 100.00% 500 out of 500
+     data_received..................: 1.5 MB  925 kB/s
+     data_sent......................: 576 kB  358 kB/s
+     http_req_blocked...............: avg=147.38ms min=36.17ms  med=136.67ms max=273.01ms p(90)=233.19ms p(95)=249.22ms
+     http_req_connecting............: avg=25.45ms  min=59.71µs  med=16.28ms  max=93.35ms  p(90)=65.79ms  p(95)=75.24ms 
+     http_req_duration..............: avg=1.14s    min=280.68ms med=1.2s     max=1.47s    p(90)=1.34s    p(95)=1.38s   
+       { expected_response:true }...: avg=1.14s    min=280.68ms med=1.2s     max=1.47s    p(90)=1.34s    p(95)=1.38s   
+     http_req_failed................: 0.00%   0 out of 500
+     http_req_receiving.............: avg=91.47µs  min=24.55µs  med=82.36µs  max=294.4µs  p(90)=153.48µs p(95)=168.44µs
+     http_req_sending...............: avg=320.78µs min=68.46µs  med=144.39µs max=12.12ms  p(90)=259.74µs p(95)=466.8µs 
+     http_req_tls_handshaking.......: avg=76.02ms  min=10.82ms  med=73.82ms  max=169.46ms p(90)=120.58ms p(95)=124.91ms
+     http_req_waiting...............: avg=1.14s    min=280.4ms  med=1.2s     max=1.46s    p(90)=1.34s    p(95)=1.38s   
+     http_reqs......................: 500     310.668151/s
+     iteration_duration.............: avg=1.29s    min=405.46ms med=1.36s    max=1.6s     p(90)=1.54s    p(95)=1.57s   
+   ✓ iterations.....................: 500     310.668151/s
+     vus............................: 317     min=317        max=500
+     vus_max........................: 500     min=500        max=500
+
+
+running (0m01.6s), 000/500 VUs, 500 complete and 0 interrupted iterations
+concurrent_bids ✓ [ 100% ] 500 VUs  01.6s/30s  500/500 iters, 1 per VU
+

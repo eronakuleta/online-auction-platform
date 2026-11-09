@@ -1,0 +1,10 @@
+{
+  "recordedAt": "2026-11-09T13:22:27.880Z",
+  "requests": 500,
+  "auctionId": "61737bc6-8dcc-4f20-a513-cadb70e4c35a",
+  "accepted": 11,
+  "highestBidCents": 51000,
+  "consistentSequence": true,
+  "winnerMatchesMaximumBid": true,
+  "finalStatus": "CLOSED_SOLD"
+}

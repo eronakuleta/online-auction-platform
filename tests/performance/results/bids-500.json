@@ -1,0 +1,144 @@
+{
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+                "accepted or valid bid-too-low conflict": {
+                    "passes": 500,
+                    "fails": 0,
+                    "name": "accepted or valid bid-too-low conflict",
+                    "path": "::accepted or valid bid-too-low conflict",
+                    "id": "0f616d8163148cd69a2c0148f82efa49"
+                }
+            }
+    },
+    "metrics": {
+        "vus": {
+            "max": 500,
+            "value": 317,
+            "min": 317
+        },
+        "http_reqs": {
+            "count": 500,
+            "rate": 310.66815145828923
+        },
+        "http_req_tls_handshaking": {
+            "avg": 76.02570463200007,
+            "min": 10.822335,
+            "med": 73.8241415,
+            "max": 169.466754,
+            "p(90)": 120.58706710000001,
+            "p(95)": 124.91953474999998
+        },
+        "http_req_blocked": {
+            "p(90)": 233.1949956,
+            "p(95)": 249.22844975,
+            "avg": 147.38376356600003,
+            "min": 36.170874,
+            "med": 136.67951549999998,
+            "max": 273.011112
+        },
+        "data_sent": {
+            "count": 575558,
+            "rate": 357615.07983406004
+        },
+        "checks": {
+            "passes": 500,
+            "fails": 0,
+            "thresholds": {
+                "rate==1": false
+            },
+            "value": 1
+        },
+        "iterations": {
+            "count": 500,
+            "rate": 310.66815145828923,
+            "thresholds": {
+                "count==500": false
+            }
+        },
+        "http_req_sending": {
+            "p(95)": 0.4668019499999992,
+            "avg": 0.320789352,
+            "min": 0.068463,
+            "med": 0.144392,
+            "max": 12.122074,
+            "p(90)": 0.25974990000000003
+        },
+        "data_received": {
+            "count": 1489436,
+            "rate": 925440.6576708569
+        },
+        "vus_max": {
+            "min": 500,
+            "max": 500,
+            "value": 500
+        },
+        "http_req_duration{expected_response:true}": {
+            "max": 1470.067679,
+            "p(90)": 1345.7310885,
+            "p(95)": 1388.9824281499998,
+            "avg": 1146.2762407599987,
+            "min": 280.685163,
+            "med": 1208.247349
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 500,
+            "value": 0
+        },
+        "http_req_receiving": {
+            "avg": 0.09147526200000008,
+            "min": 0.024557,
+            "med": 0.0823635,
+            "max": 0.294403,
+            "p(90)": 0.1534893,
+            "p(95)": 0.16844549999999997
+        },
+        "http_req_duration": {
+            "p(90)": 1345.7310885,
+            "p(95)": 1388.9824281499998,
+            "avg": 1146.2762407599987,
+            "min": 280.685163,
+            "med": 1208.247349,
+            "max": 1470.067679
+        },
+        "iteration_duration": {
+            "max": 1605.061858,
+            "p(90)": 1544.1885721,
+            "p(95)": 1570.7462004,
+            "avg": 1294.3086788760008,
+            "min": 405.468265,
+            "med": 1365.693412
+        },
+        "http_req_connecting": {
+            "min": 0.059715,
+            "med": 16.2863265,
+            "max": 93.358754,
+            "p(90)": 65.79447,
+            "p(95)": 75.24711895,
+            "avg": 25.453630208
+        },
+        "http_req_waiting": {
+            "avg": 1145.8639761459995,
+            "min": 280.403021,
+            "med": 1207.960297,
+            "max": 1469.810995,
+            "p(90)": 1344.3987783,
+            "p(95)": 1388.3571322499997
+        },
+        "bids_accepted": {
+            "count": 11,
+            "rate": 6.834699332082363,
+            "thresholds": {
+                "count>0": false
+            }
+        },
+        "bids_conflicted": {
+            "count": 489,
+            "rate": 303.83345212620685
+        }
+    }
+}
