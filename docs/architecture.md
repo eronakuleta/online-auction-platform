@@ -5,9 +5,7 @@ talk to each other, where each piece of data lives, and why we chose this design
 describes come from `ROADMAP.md` §3 and §4, `docs/requirements.md` and `docs/events.md`. If this
 document and the code disagree, the code is right and this document must be fixed.
 
-Status on 06.11.2026: auth-service, auction-service, payment-service (wallet part) and the gateway
-run on `development`. bidding-service is on Anesa's branches (B-04 to B-11), notification-service
-is not built yet (B-14). Parts that do not exist yet are marked _planned_.
+Status on 09.11.2026: all five services, two bidding replicas, Redis cache/SSE, settlement, notifications and the gateway are integrated in `development`. Prometheus is available under the monitoring profile.
 
 ## 1. Components
 
@@ -21,7 +19,7 @@ flowchart TB
     auction["auction-service :3002"]
     bidding["bidding-service :3003<br/>2 replicas"]
     payment["payment-service :3004"]
-    notification["notification-service :3005<br/><i>planned</i>"]
+    notification["notification-service :3005"]
   end
 
   subgraph data["One PostgreSQL 16 container, five databases"]
@@ -54,16 +52,16 @@ flowchart TB
 Solid lines are requests. Dotted lines are the only two synchronous calls between services. Every
 other interaction between services goes through RabbitMQ.
 
-| Component               | Owner | Responsibility                                                                             | Its data                                                                        |
-| ----------------------- | ----- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| Nginx gateway           | Erona | The only entry point: TLS, CORS allow-list, rate limits, path routing, blocks `/internal`  | none                                                                            |
-| auth-service            | Erona | Register, login, refresh, logout, profile, admin user management, login throttling         | `auth_db`: users, roles, refresh tokens                                         |
-| auction-service         | Erona | Catalog, search, categories, auction lifecycle and its status                              | `auction_db`: categories, auctions, images                                      |
-| bidding-service         | Anesa | Place bid, bid history, anti-sniping, closing worker, SSE stream (_planned_, B-12)         | `bidding_db`: auction snapshot, bids, idempotency keys; Redis (_planned_, B-09) |
-| payment-service         | Erona | Wallets, simulated deposits, funds check, settlement (A-18)                                | `payment_db`: wallets, ledger, settlements                                      |
-| notification-service    | Anesa | In-app notifications built from events (_planned_, B-14)                                   | `notification_db` (_planned_)                                                   |
-| `backend/shared/common` | Anesa | Logger, error classes and handler, correlation IDs, event contract, publisher and consumer | none                                                                            |
-| `backend/shared/auth`   | Erona | JWT verification, `authenticate`, `requireRole`                                            | none                                                                            |
+| Component               | Owner | Responsibility                                                                             | Its data                                                      |
+| ----------------------- | ----- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
+| Nginx gateway           | Erona | The only entry point: TLS, CORS allow-list, rate limits, path routing, blocks `/internal`  | none                                                          |
+| auth-service            | Erona | Register, login, refresh, logout, profile, admin user management, login throttling         | `auth_db`: users, roles, refresh tokens                       |
+| auction-service         | Erona | Catalog, search, categories, auction lifecycle and its status                              | `auction_db`: categories, auctions, images                    |
+| bidding-service         | Anesa | Place bid, bid history, anti-sniping, closing worker, SSE stream                           | `bidding_db`: auction snapshot, bids, idempotency keys; Redis |
+| payment-service         | Erona | Wallets, simulated deposits, funds check, settlement (A-18)                                | `payment_db`: wallets, ledger, settlements                    |
+| notification-service    | Anesa | In-app notifications built from events                                                     | `notification_db`: notifications                              |
+| `backend/shared/common` | Anesa | Logger, error classes and handler, correlation IDs, event contract, publisher and consumer | none                                                          |
+| `backend/shared/auth`   | Erona | JWT verification, `authenticate`, `requireRole`                                            | none                                                          |
 
 ## 2. Service boundaries
 
@@ -335,12 +333,28 @@ erDiagram
   }
 ```
 
-### notification_db (_planned_, owner Anesa, B-14)
+### notification_db (owner Anesa, B-14)
 
-Will hold the in-app notifications per user (type, text, read flag, time) and the IDs of processed
-events. It is drawn here once its schema exists.
+One notification per (event_id, user_id); this unique constraint makes redelivery idempotent. User and auction IDs refer to other services and deliberately have no cross-database foreign keys.
 
-### Redis (_planned_, B-09 and B-12)
+```mermaid
+erDiagram
+  notifications {
+    uuid id PK
+    uuid user_id "owner from JWT"
+    uuid event_id "unique with user_id"
+    text type
+    text title
+    text message
+    uuid auction_id "null only for welcome"
+    timestamptz read_at "null means unread"
+    timestamptz created_at
+  }
+```
+
+The list index is (user_id, created_at DESC, id); a partial unread index supports the bell and read-all.
+
+### Redis (B-09 and B-12)
 
 Will be used only by bidding-service: a write-through cache of each auction's highest bid (written after
 the commit) and pub/sub that fans out new bids to every replica, so each one can push them to its own
@@ -357,7 +371,7 @@ SSE clients. PostgreSQL stays the source of truth; Redis can be emptied without 
 | Errors         | One error format `{ error: { code, message, details, requestId } }` from the shared handler                                                                                                                                                                                                 | `backend/shared/common`             |
 | Tracing        | The gateway sets `X-Request-Id`; services log it as `correlationId` and pass it on in HTTP calls and in the `x-correlation-id` event header                                                                                                                                                 | shared logger, publisher            |
 | Configuration  | Environment variables only, validated at startup (the service stops if one is missing); documented in `.env.example`                                                                                                                                                                        | `src/config`                        |
-| Idempotency    | `Idempotency-Key` for placing bids (_planned_, B-10; the `idempotency_keys` table exists); `processed_events` or unique keys for events                                                                                                                                                     | bidding, consumers                  |
+| Idempotency    | `Idempotency-Key` for placing bids (B-10, unique per user and key); `processed_events` or unique keys for events                                                                                                                                                                            | bidding, consumers                  |
 
 ## 6. Why this design
 

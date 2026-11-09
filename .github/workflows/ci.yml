@@ -7,7 +7,7 @@ on:
   push:
     branches: ['**']
   pull_request:
-    branches: [main]
+    branches: [main, development]
   workflow_dispatch:
 
 # Least privilege: the workflow can only read the repository.
@@ -47,7 +47,20 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      rabbitmq:
+        image: rabbitmq:4-management
+        env:
+          RABBITMQ_DEFAULT_USER: test
+          RABBITMQ_DEFAULT_PASS: test
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     env:
+      RABBITMQ_TEST_URL: amqp://test:test@localhost:5672
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
       TEST_REDIS_URL: redis://localhost:6379
       # Build-time value only; the real gateway URL comes from .env at runtime.
@@ -157,7 +170,7 @@ jobs:
           chmod 644 secrets/jwt_private.pem
 
       - name: Start the stack
-        run: docker compose up -d --build --wait --wait-timeout 300
+        run: docker compose --profile monitoring up -d --build --wait --wait-timeout 300
 
       # NODE_EXTRA_CA_CERTS trusts the gateway's self-signed certificate, so TLS is verified.
       - name: Test through the gateway
@@ -203,6 +216,14 @@ jobs:
         env:
           NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
         run: node --test tests/e2e/load-balancing.e2e.mjs
+
+      - name: Observability test
+        env:
+          NODE_EXTRA_CA_CERTS: gateway/certs/cert.pem
+        run: node --test tests/e2e/observability.e2e.mjs
+
+      - name: API collection evidence
+        run: npm run test:collection
 
       - name: Show logs on failure
         if: failure()

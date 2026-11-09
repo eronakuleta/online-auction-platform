@@ -175,6 +175,10 @@ describe('RBAC matrix: role checks in routes, ownership in services', () => {
     // bidding-service. An amount of 0 is invalid, so no bid is ever placed by this suite.
     ['POST', `/auctions/${SEEDED_LIVE_ID}/bids`, { amountCents: 0 }, [401, 400, 400, 403]],
     // Settlements are for admins only.
+    ['GET', '/notifications', undefined, [401, 200, 200, 200]],
+    ['GET', '/notifications/unread-count', undefined, [401, 200, 200, 200]],
+    ['POST', '/notifications/read-all', undefined, [401, 200, 200, 200]],
+    ['PATCH', `/notifications/${unknownId}/read`, undefined, [401, 404, 404, 404]],
     ['GET', '/payments', undefined, [401, 403, 403, 200]],
     ['GET', '/categories', undefined, [200, 200, 200, 200]],
     // A 1-character name is invalid, so the admin's allowed request creates nothing (400, not 201).
@@ -319,7 +323,13 @@ describe('CORS', () => {
 
 describe('security headers (helmet in each service)', () => {
   test('are on answers from every service, through the gateway', async () => {
-    for (const path of ['/auctions', '/users/me']) {
+    for (const path of [
+      '/auctions',
+      '/users/me',
+      '/wallet/me',
+      '/notifications',
+      `/auctions/${SEEDED_LIVE_ID}/state`,
+    ]) {
       const { headers } = await call(path);
       assert.equal(headers.get('x-content-type-options'), 'nosniff', path);
       assert.equal(headers.get('x-frame-options'), 'SAMEORIGIN', path);

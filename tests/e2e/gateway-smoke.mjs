@@ -213,6 +213,18 @@ test('refuses a body over the limit with 413', async () => {
 
 // Last, because it uses up this IP's login allowance for a while.
 test('rate limits login attempts with 429 and Retry-After', async () => {
+  // A previous run can leave this IP throttled. Wait for one request to reach auth first.
+  for (let attempt = 0; ; attempt += 1) {
+    const probe = await call('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'nobody@test.io', password: 'wrong password' }),
+    });
+    if (probe.status === 401) break;
+    assert.equal(probe.status, 429);
+    assert.ok(attempt < 15, 'auth allowance did not recover');
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+  }
+
   const attempts = await Promise.all(
     Array.from({ length: 20 }, () =>
       call('/auth/login', {

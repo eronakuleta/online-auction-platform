@@ -73,10 +73,10 @@ Anesa's numbers include the proposed cuts to B-15, B-17, B-20 and B-25. Her othe
 | A-25 | Frontend: auth context with token refresh and role-based route guards, auth pages, catalog browse/search/filter, auction detail (read-only) | 5 | Wed 11.11 | A-07, A-12 | In review (session with single-flight refresh, RequireAuth guard, login/register/account, catalog with URL filters, auction detail; build passes; API calls replayed against a fresh stack) | [x] |
 | A-26 | Frontend: create/edit auction form, seller dashboard (dashboard is first on the cut list if late) | 4 | Fri 13.11 | A-25 | In review (GET /auctions/mine with 11 tests; create/edit form and dashboard with publish, cancel, delete; seller flow replayed against a fresh stack) | [x] |
 | A-27 | Frontend: wallet page. Admin pages moved to stretch (admin API stays) | 2 | Fri 13.11 | A-25, A-17 | In review (balance, simulated deposit, paged history behind the BIDDER/SELLER guard; requests replayed against a fresh stack) | [x] |
-| A-28 | `tests/e2e`: full lifecycle through the gateway (register, create, bid, close, settle, notify) | 3 | Sat 14.11 | all services | In progress: lifecycle test register to settle passes on the real stack and in CI; the notify step waits for B-14 | [ ] |
+| A-28 | `tests/e2e`: full lifecycle through the gateway (register, create, bid, close, settle, notify) | 3 | Sat 14.11 | all services | Verified: lifecycle including notifications passes on the real stack; docs/test-report.md | [x] |
 | A-29 | Presentation: requirements, architecture, security, own services | 2 | Sat 14.11 | none | In review (12-slide deck with speaker notes; link in docs/defense-notes/erona.md) | [x] |
-| A-30 | Defense prep: rehearse demo, live-change drills, update `docs/contributions.md` | 3 | Sat 14.11 | none | In progress: demo script and drills ready and rehearsed once on a fresh stack (docs/defense-notes/erona-demo.md); Erona rehearses before the defense | [ ] |
-| A-31 | Peer review of Anesa's PRs (about 15 min per day) and the Thu 12.11 walkthrough | 3 | ongoing | none | Ongoing, as Anesa opens PRs | [ ] |
+| A-30 | Defense prep: rehearse demo, live-change drills, update `docs/contributions.md` | 3 | Sat 14.11 | none | Technical preparation complete; automated demo verified. Student speaking rehearsal and live-change drills remain | [ ] |
+| A-31 | Peer review of Anesa's PRs (about 15 min per day) and the Thu 12.11 walkthrough | 3 | ongoing | none | Automated technical review complete (docs/takeover-audit.md); student peer approval remains | [ ] |
 
 ---
 
@@ -98,17 +98,17 @@ Only the `Due` column was re-dated for the new deadline. Wording, hours and depe
 | B-10 | bidding-service: Idempotency-Key handling and funds check against payment-service with timeout and retry (use a stub until A-17 lands, then switch to real) | 7 | Sun 08.11 | B-06, A-17 | [x] |
 | B-11 | bidding-service: closing worker (`FOR UPDATE SKIP LOCKED`), winner and reserve-price logic, publishes `auction.closed`. **Unblocks A-18** | 8 | Sun 08.11 | B-06, B-07 | [x] |
 | B-12 | bidding-service: SSE `/auctions/:id/stream` with Redis pub/sub fan-out for 2 replicas, heartbeat. **Unblocks A-21** | 8 | Wed 11.11 | B-09, B-11 | [x] |
-| B-13 | bidding-service tests: unit, integration, concurrency test (50 parallel bids give one consistent order and winner) | 8 | Fri 13.11 | B-06 to B-11 | [ ] |
+| B-13 | bidding-service tests: unit, integration, concurrency test (50 parallel bids give one consistent order and winner) | 8 | Fri 13.11 | B-06 to B-11 | [x] |
 | B-14 | notification-service: schema and consumers (welcome, outbid, won, lost, sold, payment completed/failed) | 8 | Wed 11.11 | B-02, B-03 | [x] |
 | B-15 | notification-service: list, unread-count, mark read, read-all. **Proposed, Anesa to confirm:** email simulation via MailHog moved to stretch (6 → 5 h) | 5 | Wed 11.11 | B-14 | [x] |
 | B-16 | notification-service tests | 3 | Fri 13.11 | B-14, B-15 | [x] |
-| B-17 | Observability: `/health` and `/metrics` on every service (shared helper), Prometheus in a compose profile. **Proposed, Anesa to confirm:** Grafana dashboard moved to stretch (8 → 5 h) | 5 | Fri 13.11 | all services | [ ] |
-| B-18 | `tests/api-collection`: Bruno collection and results table (input, expected, actual) covering valid, invalid, boundary and unauthorized cases across all services; `docs/test-report.md` | 6 | Sat 14.11 | all services | [ ] |
-| B-19 | Performance: k6 scripts (read-heavy browsing, 500 concurrent bids on one auction), before/after caching, 1 vs 2 replicas, `docs/performance-report.md` with limitations | 10 | Fri 13.11 | B-09, A-21 | [ ] |
+| B-17 | Observability: `/health` and `/metrics` on every service (shared helper), Prometheus in a compose profile. **Proposed, Anesa to confirm:** Grafana dashboard moved to stretch (8 → 5 h) | 5 | Fri 13.11 | all services | [x] |
+| B-18 | `tests/api-collection`: Bruno collection and results table (input, expected, actual) covering valid, invalid, boundary and unauthorized cases across all services; `docs/test-report.md` | 6 | Sat 14.11 | all services | [x] |
+| B-19 | Performance: k6 scripts (read-heavy browsing, 500 concurrent bids on one auction), before/after caching, 1 vs 2 replicas, `docs/performance-report.md` with limitations | 10 | Fri 13.11 | B-09, A-21 | [x] |
 | B-20 | Frontend: live auction page (native `EventSource` with cleanup and reconnect, countdown, bid form with server errors, history), my bids, notification bell; built on the A-01 scaffold with MUI and TanStack Query. **Proposed, Anesa to confirm:** frontend polish moved to stretch (12 → 10 h) | 10 | Fri 13.11 | B-12, B-15, A-01 | [x] |
-| B-21 | `README.md` (prerequisites, versions, setup, run, seed, test), `scripts/` (start, reset, seed demo data, `package.sh` to ZIP without `node_modules`, `.env`, keys). Draft the skeleton in Sprint 1, finalise on Sat 14.11 | 7 | Sat 14.11 | none | [ ] |
-| B-22 | OpenAPI 3 specs for bidding and notification | 3 | Sat 14.11 | B-13, B-16 | [ ] |
-| B-23 | Presentation: bidding and concurrency, events, performance results, live-demo script | 4 | Sat 14.11 | none | [ ] |
+| B-21 | `README.md` (prerequisites, versions, setup, run, seed, test), `scripts/` (start, reset, seed demo data, `package.sh` to ZIP without `node_modules`, `.env`, keys). Draft the skeleton in Sprint 1, finalise on Sat 14.11 | 7 | Sat 14.11 | none | [x] |
+| B-22 | OpenAPI 3 specs for bidding and notification | 3 | Sat 14.11 | B-13, B-16 | [x] |
+| B-23 | Presentation: bidding and concurrency, events, performance results, live-demo script | 4 | Sat 14.11 | none | [x] |
 | B-24 | Defense prep: rehearse demo, live-change drills, update `docs/contributions.md` | 4 | Sat 14.11 | none | [ ] |
 | B-25 | Peer review of Erona's PRs and the Thu 12.11 walkthrough. **Proposed, Anesa to confirm:** about 15 min per day over the shorter timeline (6 → 3 h) | 3 | ongoing | none | [ ] |
 
@@ -150,3 +150,7 @@ Erona's three DB schemas (A-06, A-10, A-16), CI (A-22) and the gateway (A-20) we
 | Redis cache, SSE, load balancing | Anesa | Erona |
 | Performance results and monitoring | Anesa | Erona |
 | Test evidence | Both | Both |
+
+## Takeover completion status (09.11.2026)
+
+All core software deliverables are integrated in development and verified; see docs/takeover-audit.md, docs/test-report.md and docs/performance-report.md. All remote branch tips were included. A-30/B-24 and A-31/B-25 remain unchecked only for the students' own speaking rehearsal, live-change practice and mutual PR approval. Preparation, runnable demo and automated technical cross-review are complete. These human actions cannot truthfully be certified by an agent. Stretch features remain outside the roadmap core scope.

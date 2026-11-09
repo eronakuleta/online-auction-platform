@@ -213,7 +213,7 @@ How to explain each of Erona's tasks (`A-xx`) at the defense. Short, in our own 
 
 - **Every running service is covered now.** The security suite checks the RBAC matrix and the security headers for bidding-service too (placing a bid needs the BIDDER role: a visitor gets 401, an admin 403) and that `GET /payments` is for admins only. 19 endpoints × 4 roles, 45 tests, all through the gateway on a fresh stack and in CI.
 - **No test ever places a bid.** The bid rows send an amount of 0, which the server must refuse with 400 after the role check, so the suite proves the role check without changing any data.
-- **What is left.** notification-service is not built yet; it joins the same way (helmet, the gateway route, rows in the matrix) when it exists.
+- **What is left.** notification-service now has helmet, gateway routing and all four notification operations in the security matrix (09.11 takeover).
 
 ## A-29 and A-30 Presentation and defense preparation
 
@@ -226,10 +226,17 @@ How to explain each of Erona's tasks (`A-xx`) at the defense. Short, in our own 
 - **Nothing is faked.** `tests/e2e/lifecycle.e2e.mjs` registers a new user, a seller publishes two NEW auctions that end about 45 seconds later, bidding-service learns them from `auction.published` (Anesa's B-05), bids pass the real funds check (B-10, my Q10 endpoint), the closing worker closes them on its own, payment-service settles and auction-service shows `SETTLED` and `CLOSED_NO_SALE`.
 - **Rules across services, checked on the way.** The seller cannot bid on their own auction (403), a bid above the balance is refused (409 `INSUFFICIENT_FUNDS`), and the seller cannot cancel after the first bid (409 `AUCTION_HAS_BIDS`, decided by bidding under its row lock).
 - **The money adds up.** The winner pays 25.00, the seller gets 23.75, the platform 1.25, the losing bidder and the no-sale auction cost nothing, and an auction without a sale is never settled. It takes about 46 seconds and runs in CI.
-- **Open part.** Notifications (Anesa's B-14) are not built yet; the test marks that step as a todo and gets the check when the service exists.
+- **Open part.** The integrated lifecycle now asserts the winner, loser and seller notifications, including payment completion.
 
 ## A-21 Load balancing bidding-service
 
 - **Two replicas, no sticky sessions.** Compose runs bidding-service twice (`BIDDING_REPLICAS`). The gateway resolves the service name per request through Docker's DNS, gets both addresses and spreads requests round robin. Nothing needs to stick to one replica: the database row lock orders bids, the closing workers use `SKIP LOCKED`, and Redis pub/sub sends every update to the stream clients of both replicas.
 - **Why the stream needs its own gateway settings.** SSE is one response that never ends: with buffering on, nginx would collect events instead of passing them on, and the 30 s read timeout of the API would cut the stream. So the stream route turns buffering off, keeps the connection open and allows an hour between reads (the service sends a heartbeat every 15 s). Because the stream needs no token, one IP may keep at most 20 streams open.
 - **Proof, including that the proof can fail.** The test reads the gateway's log, which names the replica that answered each request: requests reach both replicas, and a stream connected to one receives all four bids although some were handled by the other. Scaled to one replica, both tests fail. A first version passed wrongly with one replica because nginx briefly retried a just-removed replica; the test now counts only the replica that actually answered.
+
+## Takeover integration and review
+
+- All remote branch tips were checked against development and integrated before adding missing work. B-15/B-16/B-20 were merged intact.
+- The full lifecycle now includes notifications and both payment outcomes; the security matrix includes all notification operations.
+- Monitoring, API collections and load measurements have executable evidence. Students should distinguish local performance results from a capacity guarantee.
+- Preparation and automated technical review are recorded; A-30/A-31 retain human rehearsal/peer-approval requirements.

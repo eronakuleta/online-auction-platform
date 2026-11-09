@@ -137,3 +137,39 @@ How to explain each of Anesa's tasks (`B-xx`) at the defense. Short, in our own 
 - **The server stays the authority.** The bid form only prefills the minimum and shows the server's answer as it came (for example `BID_TOO_LOW`). The `Idempotency-Key` is reused only when the outcome is unknown (network error or 5xx), never after a rule rejection, so a retry can never place a bid twice but a corrected bid is never replayed as the old rejection.
 - **Honest about the clock.** The countdown uses this computer's clock and can be a few seconds off. It follows `endsAt`, so an anti-sniping extension changes it live, and the server refuses a late bid whatever the countdown says. The stream is public and read-only (decision Q3), because `EventSource` cannot send a token.
 - **The bell and My bids.** The bell polls the unread count every 30 s and loads the latest five when opened; opening one marks it read and goes to its auction. My bids shows each bid's standing (winning, not the highest, won, lost, no sale, cancelled) from fields the server computes, so the page holds no business rules.
+
+## B-17 Monitoring
+
+- Every service has its own Prometheus registry with HTTP count and latency plus process metrics. Raw URLs, tokens and user IDs are never metric labels.
+- Docker DNS discovers each bidding replica independently. The API gateway keeps metrics internal; port 9090 is local only.
+- Health means the database answers, not every dependency. Redis read failure falls back to PostgreSQL.
+
+## B-18 API collection and evidence
+
+- The same case definitions generate Bruno requests and the native HTTPS evidence runner, reducing drift between manual and automated checks.
+- The result table records actual HTTP status and error codes; negative tests also require the standard requestId.
+- Valid, invalid, boundary, unauthorized, forbidden and missing-resource cases span all five services.
+
+## B-19 Load measurements
+
+- k6 sends 500 one-shot bid requests from registered, funded users. A 409 BID_TOO_LOW is an expected competing bid outcome; transport failures are not counted as successes.
+- The verification waits for the real closing worker, checks the accepted sequence and increasing amounts, and matches the winner to the maximum bid.
+- Keep failed runs as evidence. Local Docker and short sampling windows limit capacity conclusions; read the performance report before quoting a number.
+
+## B-21 Reproducible setup and packaging
+
+- The start script preserves existing env values and keys, initializes fresh databases and upgrades an empty legacy notification database without wiping other data.
+- Reset is explicitly destructive and needs --confirm. Seed reapplies only deterministic seed SQL.
+- Packaging archives a clean committed HEAD and rejects tracked secrets/generated directories; the ZIP is reproducible from its commit.
+
+## B-22 API documentation
+
+- Bidding and notification now have complete OpenAPI specs, alongside auth, auction and payment. Swagger reads all five directly.
+- Route coverage tests compare documented operations with implemented routes and exercise their real Express handlers.
+- The public SSE stream carries only public state; reserve prices stay private. Internal cancel uses a separate server and is blocked at the gateway.
+
+## B-23 / B-24 Defense handoff
+
+- The slide deck and offline speaking outline explain the actual locks, events, cache and measured results.
+- npm run demo rehearses the technical flow on real services including notifications and ledger checks.
+- Students still need to rehearse speaking and live edits; automated execution does not replace their understanding or approval.
