@@ -1,0 +1,27 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: auction-services
+    dns_sd_configs:
+      - names: [auth-service, auction-service, payment-service, notification-service]
+        type: A
+        port: 3001
+    relabel_configs:
+      - source_labels: [__meta_dns_name]
+        regex: auction-service
+        target_label: __address__
+        replacement: auction-service:3002
+      - source_labels: [__meta_dns_name]
+        regex: payment-service
+        target_label: __address__
+        replacement: payment-service:3004
+      - source_labels: [__meta_dns_name]
+        regex: notification-service
+        target_label: __address__
+        replacement: notification-service:3005
+  - job_name: bidding-replicas
+    dns_sd_configs:
+      - names: [bidding-service]
+        type: A
+        port: 3003

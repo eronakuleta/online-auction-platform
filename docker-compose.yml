@@ -180,6 +180,7 @@ services:
       SNIPE_EXTENSION_SECONDS: ${SNIPE_EXTENSION_SECONDS:-30}
       MAX_EXTENSIONS: ${MAX_EXTENSIONS:-10}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      STATE_CACHE_ENABLED: ${STATE_CACHE_ENABLED:-true}
       STATE_CACHE_TTL_SECONDS: ${STATE_CACHE_TTL_SECONDS:-30}
       PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL:-http://payment-service:3004}
       FUNDS_CHECK_TIMEOUT_MS: ${FUNDS_CHECK_TIMEOUT_MS:-2000}
@@ -320,12 +321,22 @@ services:
     image: swaggerapi/swagger-ui:v5.17.14
     profiles: [docs]
     environment:
-      URLS: '[{"url":"specs/auth.yaml","name":"auth-service"},{"url":"specs/auction.yaml","name":"auction-service"},{"url":"specs/payment.yaml","name":"payment-service"}]'
+      URLS: '[{"url":"specs/auth.yaml","name":"auth-service"},{"url":"specs/auction.yaml","name":"auction-service"},{"url":"specs/payment.yaml","name":"payment-service"},{"url":"specs/bidding.yaml","name":"bidding-service"},{"url":"specs/notification.yaml","name":"notification-service"}]'
       VALIDATOR_URL: none
     volumes:
       - ./docs/api:/usr/share/nginx/html/specs:ro
     ports:
       - '127.0.0.1:${SWAGGER_UI_HOST_PORT:-8081}:8080'
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    profiles: [monitoring]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - '127.0.0.1:9090:9090'
+    networks: [backend]
     restart: unless-stopped
 
 networks:

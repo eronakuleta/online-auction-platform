@@ -2,6 +2,7 @@ import type { TokenVerifier } from '@auction/shared-auth';
 import {
   ServiceUnavailableError,
   correlationMiddleware,
+  installMetrics,
   createErrorHandler,
   notFoundHandler,
   requestLogger,
@@ -28,6 +29,7 @@ export function createApp(deps: AppDependencies): Express {
   const { pool, walletService, settlementService, verifyToken, logger } = deps;
   const app = express();
   app.disable('x-powered-by');
+  installMetrics(app, 'payment-service');
 
   app.use(correlationMiddleware());
   // Security headers on every answer. No HSTS: TLS ends at the gateway, and on localhost it would

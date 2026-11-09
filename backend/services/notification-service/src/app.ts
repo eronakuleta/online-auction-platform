@@ -2,6 +2,7 @@ import type { TokenVerifier } from '@auction/shared-auth';
 import {
   ServiceUnavailableError,
   correlationMiddleware,
+  installMetrics,
   createErrorHandler,
   notFoundHandler,
   requestLogger,
@@ -26,6 +27,7 @@ export function createApp(deps: AppDependencies): Express {
   const { pool, notificationService, verifyToken, logger } = deps;
   const app = express();
   app.disable('x-powered-by');
+  installMetrics(app, 'notification-service');
 
   app.use(correlationMiddleware());
   // Same headers as the other services. No HSTS: TLS ends at the gateway (gateway/README.md).

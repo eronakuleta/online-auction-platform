@@ -49,3 +49,5 @@ export {
 } from './events/topology';
 export type { ConsumerService } from './events/topology';
 export { setupTopology } from './events/setup-topology';
+
+export { installMetrics } from './http/metrics';
