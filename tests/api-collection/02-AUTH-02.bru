@@ -1,0 +1,28 @@
+meta {
+  name: Invalid login
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "bidder1@auction.test",
+    "password": "wrong"
+  }
+}
+
+tests {
+  test("Expected HTTP 401", function () {
+    expect(res.getStatus()).to.equal(401);
+  });
+}

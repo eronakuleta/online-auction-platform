@@ -1,0 +1,27 @@
+meta {
+  name: Bid unauthorized
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/auctions/10000000-0000-4000-8000-000000000001/bids
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "amountCents": 1000
+  }
+}
+
+tests {
+  test("Expected HTTP 401", function () {
+    expect(res.getStatus()).to.equal(401);
+  });
+}

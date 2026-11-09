@@ -1,0 +1,21 @@
+meta {
+  name: Notifications unauthorized
+  type: http
+  seq: 25
+}
+
+get {
+  url: {{baseUrl}}/notifications
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Expected HTTP 401", function () {
+    expect(res.getStatus()).to.equal(401);
+  });
+}

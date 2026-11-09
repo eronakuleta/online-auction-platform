@@ -1,0 +1,22 @@
+meta {
+  name: Notifications over page size
+  type: http
+  seq: 27
+}
+
+get {
+  url: {{baseUrl}}/notifications?size=101
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+}
+
+tests {
+  test("Expected HTTP 400", function () {
+    expect(res.getStatus()).to.equal(400);
+  });
+}

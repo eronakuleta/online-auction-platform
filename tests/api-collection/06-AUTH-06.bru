@@ -1,0 +1,22 @@
+meta {
+  name: Admin users forbidden
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/users
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+}
+
+tests {
+  test("Expected HTTP 403", function () {
+    expect(res.getStatus()).to.equal(403);
+  });
+}

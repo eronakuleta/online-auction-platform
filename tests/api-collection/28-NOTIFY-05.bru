@@ -1,0 +1,22 @@
+meta {
+  name: Read unknown notification
+  type: http
+  seq: 28
+}
+
+patch {
+  url: {{baseUrl}}/notifications/ffffffff-ffff-4fff-8fff-ffffffffffff/read
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+}
+
+tests {
+  test("Expected HTTP 404", function () {
+    expect(res.getStatus()).to.equal(404);
+  });
+}

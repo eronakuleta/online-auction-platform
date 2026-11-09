@@ -1,0 +1,29 @@
+meta {
+  name: Invalid registration
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "invalid",
+    "password": "x",
+    "displayName": ""
+  }
+}
+
+tests {
+  test("Expected HTTP 400", function () {
+    expect(res.getStatus()).to.equal(400);
+  });
+}

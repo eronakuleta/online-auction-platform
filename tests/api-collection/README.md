@@ -1,0 +1,5 @@
+# Bruno API collection
+
+Open this directory as a collection in Bruno, select the Local environment and run in sequence. Request 1 saves a bidder access token in memory for the later requests. Trust `gateway/certs/cert.pem` in Bruno (or disable certificate checking for localhost only). Start the Compose stack first. The seeded auction can be closed: the public read checks remain valid.
+
+`npm run test:collection` generates these request files and executes the same request definitions through the real gateway using Node fetch. It writes actual status/error evidence to `docs/api-collection-results.md` and exits unsuccessfully on any unexpected status or malformed error. `node scripts/api-collection.mjs --generate-only` refreshes Bruno files without sending requests. Tokens are never saved to the collection or results. Mutations are limited to the demo bidder's read status; invalid write tests do not create auctions or deposits. For full valid bidding and settlement flows run `npm run demo`.

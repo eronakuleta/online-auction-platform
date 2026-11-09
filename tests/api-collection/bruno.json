@@ -1,0 +1,6 @@
+{
+  "version": "1",
+  "name": "Online Auction Platform",
+  "type": "collection",
+  "ignore": ["node_modules", ".git"]
+}

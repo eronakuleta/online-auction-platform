@@ -1,0 +1,22 @@
+meta {
+  name: Wallet authorized
+  type: http
+  seq: 19
+}
+
+get {
+  url: {{baseUrl}}/wallet/me
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+}
+
+tests {
+  test("Expected HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

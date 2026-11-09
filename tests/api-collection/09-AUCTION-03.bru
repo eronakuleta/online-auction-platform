@@ -1,0 +1,21 @@
+meta {
+  name: Catalog over page size
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/auctions?size=101
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Expected HTTP 400", function () {
+    expect(res.getStatus()).to.equal(400);
+  });
+}

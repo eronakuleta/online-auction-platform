@@ -1,0 +1,21 @@
+meta {
+  name: Auction not found
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/auctions/ffffffff-ffff-4fff-8fff-ffffffffffff
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Expected HTTP 404", function () {
+    expect(res.getStatus()).to.equal(404);
+  });
+}

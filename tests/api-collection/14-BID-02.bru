@@ -1,0 +1,21 @@
+meta {
+  name: Bid history public
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/auctions/10000000-0000-4000-8000-000000000001/bids?size=100
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Expected HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

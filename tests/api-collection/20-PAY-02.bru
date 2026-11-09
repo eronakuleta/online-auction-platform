@@ -1,0 +1,21 @@
+meta {
+  name: Wallet unauthorized
+  type: http
+  seq: 20
+}
+
+get {
+  url: {{baseUrl}}/wallet/me
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Expected HTTP 401", function () {
+    expect(res.getStatus()).to.equal(401);
+  });
+}

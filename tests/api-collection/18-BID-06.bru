@@ -1,0 +1,21 @@
+meta {
+  name: State not found
+  type: http
+  seq: 18
+}
+
+get {
+  url: {{baseUrl}}/auctions/ffffffff-ffff-4fff-8fff-ffffffffffff/state
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Expected HTTP 404", function () {
+    expect(res.getStatus()).to.equal(404);
+  });
+}

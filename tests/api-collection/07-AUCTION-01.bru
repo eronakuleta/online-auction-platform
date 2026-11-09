@@ -1,0 +1,21 @@
+meta {
+  name: Catalog valid
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/auctions
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Expected HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

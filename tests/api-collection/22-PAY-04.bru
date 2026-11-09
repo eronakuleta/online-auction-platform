@@ -1,0 +1,22 @@
+meta {
+  name: Transactions valid
+  type: http
+  seq: 22
+}
+
+get {
+  url: {{baseUrl}}/wallet/transactions
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+}
+
+tests {
+  test("Expected HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
