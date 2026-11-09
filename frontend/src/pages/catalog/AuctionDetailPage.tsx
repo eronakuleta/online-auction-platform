@@ -1,8 +1,9 @@
-// One auction, read-only (FR-05). Bidding itself is on the live auction page (Anesa, B-12 and her
-// auction-live page); this page shows what auction-service knows.
+// One auction, read-only (FR-05). Bidding itself is on the live auction page (Anesa, B-20); this
+// page shows what auction-service knows and links there.
 import {
   Box,
   Breadcrumbs,
+  Button,
   Chip,
   Divider,
   Grid,
@@ -108,6 +109,9 @@ export function AuctionDetailPage() {
               <Typography variant="h4" component="h1">
                 {a.title}
               </Typography>
+              <Button variant="contained" component={RouterLink} to={`/auctions/${a.id}/live`}>
+                {a.status === 'PUBLISHED' ? 'Watch live and bid' : 'See the bids'}
+              </Button>
               <Divider />
               {a.finalPriceCents !== null && (
                 <Fact label="Sold for">{money(a.finalPriceCents)}</Fact>

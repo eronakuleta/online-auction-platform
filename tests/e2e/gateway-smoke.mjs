@@ -147,10 +147,18 @@ test('routes the wallet to payment-service', async () => {
   assert.equal(anonymous.body.error.code, 'UNAUTHORIZED');
 });
 
-test('routes notification paths to notification-service (B-14)', async () => {
-  // The service has no endpoints before B-15, so it answers its own 404 in the standard error
-  // format. A 503 here would mean the gateway cannot reach it.
-  assertGatewayError(await call('/notifications'), 404, 'NOT_FOUND');
+test('routes notification paths to notification-service (B-14, B-15)', async () => {
+  // Its own answers in the standard error format; a 503 would mean the gateway cannot reach it.
+  assertGatewayError(await call('/notifications'), 401, 'UNAUTHORIZED');
+  assertGatewayError(await call('/notifications/unread-count'), 401, 'UNAUTHORIZED');
+  const token = await login('bidder1@auction.test', 'Bidder#Demo2026');
+  const headers = { Authorization: `Bearer ${token}` };
+  const list = await call('/notifications', { headers });
+  assert.equal(list.status, 200);
+  assert.ok(Array.isArray(list.body.data));
+  const count = await call('/notifications/unread-count', { headers });
+  assert.equal(count.status, 200);
+  assert.equal(typeof count.body.unreadCount, 'number');
 });
 
 test('blocks /internal in every spelling, with the same 404 as an unknown route', async () => {

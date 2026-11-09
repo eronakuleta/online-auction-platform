@@ -1,16 +1,23 @@
 // Test setup: a real Postgres with a throwaway database per test file, built from the same SQL
 // files as production. Events are built with createEvent, so they are checked against the contract.
-import { randomBytes, randomUUID } from 'node:crypto';
+import { generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { createTokenVerifier, type Role } from '@auction/shared-auth';
 import { createEvent, createLogger, type DomainEvent } from '@auction/shared-common';
+import type { Express } from 'express';
+import jwt from 'jsonwebtoken';
 import { Client, Pool } from 'pg';
+import { createApp } from '../app';
 import { createNotificationHandlers } from '../events/notification.consumer';
+import { createNotificationService } from '../services/notification.service';
 
 // The default is the Docker Compose Postgres from .env.example. CI sets its own service container.
 const ADMIN_URL =
   process.env.TEST_DATABASE_URL ?? 'postgres://auction:change-me-postgres@localhost:5433/postgres';
 const SQL_DIR = join(__dirname, '../../../../../database/notification');
+const ISSUER = 'auction-auth-service';
+const AUDIENCE = 'auction-platform';
 
 /** From database/auth/002_seed.sql and database/auction/002_seed.sql. */
 export const SELLER_ID = '00000000-0000-4000-8000-000000000002';
@@ -30,7 +37,10 @@ export interface StoredNotification {
 }
 
 export interface TestContext {
+  app: Express;
   pool: Pool;
+  /** A real RS256 access token for the user, like auth-service would issue. */
+  tokenFor(userId: string, roles?: Role[]): string;
   handlers: ReturnType<typeof createNotificationHandlers>;
   /** The stored notifications of one user, oldest first. */
   notificationsOf(userId: string): Promise<StoredNotification[]>;
@@ -60,7 +70,23 @@ export async function createTestContext(): Promise<TestContext> {
   }
 
   const logger = createLogger({ service: 'notification-service-test', level: 'silent' });
+  const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const verifyToken = createTokenVerifier({ publicKey, issuer: ISSUER, audience: AUDIENCE });
   return {
+    app: createApp({
+      pool,
+      notificationService: createNotificationService(pool),
+      verifyToken,
+      logger,
+    }),
+    tokenFor: (userId, roles = ['BIDDER']) =>
+      jwt.sign({ roles }, privateKey, {
+        algorithm: 'RS256',
+        subject: userId,
+        issuer: ISSUER,
+        audience: AUDIENCE,
+        expiresIn: 900,
+      }),
     pool,
     handlers: createNotificationHandlers({ pool, logger }),
     async notificationsOf(userId) {

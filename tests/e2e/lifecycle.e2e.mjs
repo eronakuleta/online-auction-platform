@@ -181,7 +181,52 @@ test('register, publish, bid, close, settle: a sale and a reserve not met, end t
     undefined,
     'an auction without a sale is never settled',
   );
-});
 
-// 6. Notify: notification-service stores them (B-14); the check reads them through the API (B-15).
-test.todo('the winner, the losing bidder and the seller receive notifications (B-15)');
+  // 6. Notify: notification-service built them from the events (B-14); each person reads their own
+  // through the API (B-15). They arrive a moment after the result, so the check waits for them.
+  const typesFor = async (person, auctionId) => {
+    const { body } = await call('/notifications?size=100', { token: person.token });
+    return body.data
+      .filter((n) => n.auctionId === auctionId)
+      .map((n) => n.type)
+      .sort();
+  };
+  const expectNotifications = (what, person, auctionId, expected) =>
+    until(
+      what,
+      async () => {
+        const actual = await typesFor(person, auctionId);
+        return JSON.stringify(actual) === JSON.stringify(expected) ? actual : undefined;
+      },
+      30_000,
+    );
+  await expectNotifications('the winner to be told', winner, sold, [
+    'AUCTION_WON',
+    'PAYMENT_COMPLETED',
+  ]);
+  await expectNotifications('the outbid bidder to be told', bidder2, sold, [
+    'AUCTION_LOST',
+    'OUTBID',
+  ]);
+  await expectNotifications('the seller to be told of the sale', seller, sold, [
+    'ITEM_SOLD',
+    'PAYMENT_COMPLETED',
+  ]);
+  await expectNotifications('the bidder below the reserve to be told', bidder2, unsold, [
+    'AUCTION_LOST',
+  ]);
+  await expectNotifications('the seller to be told of the missed reserve', seller, unsold, [
+    'NO_SALE',
+  ]);
+  assert.deepEqual(await typesFor(winner, unsold), [], 'a bid that was never placed is not news');
+
+  // The bell: the winner's new notifications are unread, and read-all clears them.
+  const unread = (await call('/notifications/unread-count', { token: winner.token })).body;
+  assert.ok(unread.unreadCount >= 3, 'welcome, won and payment are unread');
+  const readAll = await call('/notifications/read-all', { method: 'POST', token: winner.token });
+  assert.equal(readAll.body.updated, unread.unreadCount);
+  assert.equal(
+    (await call('/notifications/unread-count', { token: winner.token })).body.unreadCount,
+    0,
+  );
+});

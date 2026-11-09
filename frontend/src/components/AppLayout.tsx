@@ -1,6 +1,7 @@
 import { AppBar, Box, Button, Container, Stack, Toolbar, Typography } from '@mui/material';
 import { Link as RouterLink, Outlet, useNavigate } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
+import { NotificationBell } from '../pages/notifications/NotificationBell';
 
 function AccountButtons() {
   const { status, user, logout, hasRole } = useAuth();
@@ -22,6 +23,11 @@ function AccountButtons() {
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
       {hasRole('BIDDER', 'SELLER') && (
+        <Button color="inherit" component={RouterLink} to="/my-bids">
+          My bids
+        </Button>
+      )}
+      {hasRole('BIDDER', 'SELLER') && (
         <Button color="inherit" component={RouterLink} to="/wallet">
           Wallet
         </Button>
@@ -31,6 +37,7 @@ function AccountButtons() {
           My auctions
         </Button>
       )}
+      <NotificationBell />
       <Button color="inherit" component={RouterLink} to="/account">
         {user.displayName}
       </Button>

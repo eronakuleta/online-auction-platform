@@ -1,3 +1,4 @@
+import type { TokenVerifier } from '@auction/shared-auth';
 import {
   ServiceUnavailableError,
   correlationMiddleware,
@@ -10,15 +11,19 @@ import express, { type Express } from 'express';
 import helmet from 'helmet';
 import type { Pool } from 'pg';
 import { pingDatabase } from './repositories/database';
+import { createRoutes } from './routes';
+import type { NotificationService } from './services/notification.service';
 
 export interface AppDependencies {
   pool: Pool;
+  notificationService: NotificationService;
+  verifyToken: TokenVerifier;
   logger: Logger;
 }
 
 /** Builds the Express app without listening, so tests can call it directly. */
 export function createApp(deps: AppDependencies): Express {
-  const { pool, logger } = deps;
+  const { pool, notificationService, verifyToken, logger } = deps;
   const app = express();
   app.disable('x-powered-by');
 
@@ -38,6 +43,8 @@ export function createApp(deps: AppDependencies): Express {
     }
     res.status(200).json({ status: 'ok' });
   });
+
+  app.use('/api/v1', createRoutes(notificationService, verifyToken));
 
   app.use(notFoundHandler());
   app.use(createErrorHandler(logger));
